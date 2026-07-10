@@ -1,11 +1,287 @@
-export default function TradesPage() {
+import { createClient } from "@/lib/supabase/server";
+import { getCurrentManager } from "@/lib/managers";
+import { getAllPlayers } from "@/lib/sleeper/client";
+import { detectTradeback, type PlayerTradeEvent } from "@/lib/rules/tradeback";
+import { TradeCashForm } from "@/components/TradeCashForm";
+import { TradeApprovalQueue } from "@/components/TradeApprovalQueue";
+
+interface TradeSideRow {
+  trade_id: string;
+  manager_id: string;
+  players_received: string[];
+  cash_amount: number | null;
+}
+
+interface TradeSideRowNoCash {
+  trade_id: string;
+  manager_id: string;
+  players_received: string[];
+}
+
+export default async function TradesPage() {
+  const supabase = await createClient();
+  const manager = await getCurrentManager(supabase);
+
+  const { data: activeSeason } = await supabase
+    .from("seasons")
+    .select("*")
+    .eq("status", "active")
+    .single();
+
+  if (!activeSeason) {
+    return <p className="text-sm text-neutral-500">No active season.</p>;
+  }
+
+  const { data: managers } = await supabase
+    .from("managers")
+    .select("id, display_name");
+  const nameById = new Map((managers ?? []).map((m) => [m.id, m.display_name]));
+
+  const { data: trades } = await supabase
+    .from("trades")
+    .select("id, status, rejection_reason, created_at, approved_at")
+    .eq("season_id", activeSeason.id)
+    .order("created_at", { ascending: false });
+
+  const tradeIds = (trades ?? []).map((t) => t.id);
+  const { data: sides } =
+    tradeIds.length > 0
+      ? await supabase
+          .from("trade_sides")
+          .select("trade_id, manager_id, players_received, cash_amount")
+          .in("trade_id", tradeIds)
+      : { data: [] as TradeSideRow[] };
+
+  const sidesByTradeId = new Map<string, TradeSideRow[]>();
+  for (const side of sides ?? []) {
+    const list = sidesByTradeId.get(side.trade_id) ?? [];
+    list.push(side);
+    sidesByTradeId.set(side.trade_id, list);
+  }
+
+  const allPlayers = await getAllPlayers();
+  const playerName = (playerId: string) => {
+    const p = allPlayers[playerId];
+    if (!p) return playerId;
+    return (
+      p.full_name || `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || playerId
+    );
+  };
+
+  const allTrades = trades ?? [];
+  const needsMyCash = manager
+    ? allTrades.filter((t) => {
+        if (t.status !== "pending_cash") return false;
+        const mySide = (sidesByTradeId.get(t.id) ?? []).find(
+          (s) => s.manager_id === manager.id
+        );
+        return mySide != null && mySide.cash_amount === null;
+      })
+    : [];
+
+  const pendingApproval = allTrades.filter((t) => t.status === "pending_approval");
+  const history = allTrades.filter(
+    (t) => t.status === "approved" || t.status === "rejected"
+  );
+
+  // Tradeback warnings only cover straightforward two-team trades — with
+  // three or more teams involved, Sleeper's data doesn't tell us which side
+  // a given player came from, so we can't reliably build the "from -> to"
+  // chain detectTradeback needs. This only ever surfaces as a warning to
+  // the commissioner, never a block, so under-warning here is an
+  // acceptable tradeoff for not over-warning on bad data.
+  let tradebackWarnings = new Map<string, string[]>();
+  if (pendingApproval.length > 0) {
+    const { data: approvedTrades } = await supabase
+      .from("trades")
+      .select("id, approved_at, created_at")
+      .eq("status", "approved");
+    const approvedIds = (approvedTrades ?? []).map((t) => t.id);
+    const { data: approvedSides } =
+      approvedIds.length > 0
+        ? await supabase
+            .from("trade_sides")
+            .select("trade_id, manager_id, players_received")
+            .in("trade_id", approvedIds)
+        : { data: [] as TradeSideRowNoCash[] };
+
+    const sidesByApprovedTrade = new Map<string, TradeSideRowNoCash[]>();
+    for (const s of approvedSides ?? []) {
+      const list = sidesByApprovedTrade.get(s.trade_id) ?? [];
+      list.push(s);
+      sidesByApprovedTrade.set(s.trade_id, list);
+    }
+
+    const playerHistory: PlayerTradeEvent[] = [];
+    for (const t of approvedTrades ?? []) {
+      const tSides = sidesByApprovedTrade.get(t.id) ?? [];
+      if (tSides.length !== 2) continue;
+      const [a, b] = tSides;
+      const occurredAt = new Date(t.approved_at ?? t.created_at).getTime();
+      for (const playerId of a.players_received) {
+        playerHistory.push({
+          tradeId: t.id,
+          playerId,
+          fromManagerId: b.manager_id,
+          toManagerId: a.manager_id,
+          occurredAt,
+        });
+      }
+      for (const playerId of b.players_received) {
+        playerHistory.push({
+          tradeId: t.id,
+          playerId,
+          fromManagerId: a.manager_id,
+          toManagerId: b.manager_id,
+          occurredAt,
+        });
+      }
+    }
+
+    tradebackWarnings = new Map(
+      pendingApproval.map((t) => {
+        const tSides = sidesByTradeId.get(t.id) ?? [];
+        const warnings: string[] = [];
+        if (tSides.length === 2) {
+          const [a, b] = tSides;
+          for (const playerId of a.players_received) {
+            const check = detectTradeback({
+              playerId,
+              proposedFromManagerId: b.manager_id,
+              proposedToManagerId: a.manager_id,
+              tradeHistory: playerHistory,
+            });
+            if (check.warning) {
+              warnings.push(
+                `${playerName(playerId)} would return to ${nameById.get(
+                  a.manager_id
+                )}, who traded them away previously without a third team in between.`
+              );
+            }
+          }
+          for (const playerId of b.players_received) {
+            const check = detectTradeback({
+              playerId,
+              proposedFromManagerId: a.manager_id,
+              proposedToManagerId: b.manager_id,
+              tradeHistory: playerHistory,
+            });
+            if (check.warning) {
+              warnings.push(
+                `${playerName(playerId)} would return to ${nameById.get(
+                  b.manager_id
+                )}, who traded them away previously without a third team in between.`
+              );
+            }
+          }
+        }
+        return [t.id, warnings];
+      })
+    );
+  }
+
+  function viewSides(tradeId: string) {
+    return (sidesByTradeId.get(tradeId) ?? []).map((s) => ({
+      managerId: s.manager_id,
+      managerName: nameById.get(s.manager_id) ?? s.manager_id,
+      playersReceived: s.players_received.map(playerName),
+      cashAmount: s.cash_amount,
+    }));
+  }
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Trades</h1>
+      <h1 className="text-2xl font-semibold">Trades — {activeSeason.year}</h1>
       <p className="mt-2 text-sm text-neutral-500">
-        Phase 2 — trade auto-import, cash entry, and the approval queue land
-        after the auction draft.
+        New trades are pulled in from Sleeper automatically. If one you just
+        made isn&apos;t showing up yet, ask your commissioner to run the sync.
       </p>
+
+      {manager && (
+        <section className="mt-8">
+          <h2 className="text-lg font-medium">Needs your cash entry</h2>
+          {needsMyCash.length === 0 ? (
+            <p className="mt-2 text-sm text-neutral-500">Nothing pending.</p>
+          ) : (
+            <div className="mt-3 space-y-4">
+              {needsMyCash.map((t) => (
+                <TradeCashForm
+                  key={t.id}
+                  tradeId={t.id}
+                  myManagerId={manager.id}
+                  sides={viewSides(t.id)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {manager?.role === "commissioner" && (
+        <section className="mt-10">
+          <h2 className="text-lg font-medium">Pending approval</h2>
+          <TradeApprovalQueue
+            trades={pendingApproval.map((t) => ({
+              id: t.id,
+              sides: viewSides(t.id),
+              warnings: tradebackWarnings.get(t.id) ?? [],
+            }))}
+          />
+        </section>
+      )}
+
+      <section className="mt-10">
+        <h2 className="text-lg font-medium">History</h2>
+        {history.length === 0 ? (
+          <p className="mt-2 text-sm text-neutral-500">
+            No resolved trades yet this season.
+          </p>
+        ) : (
+          <div className="mt-3 space-y-3">
+            {history.map((t) => (
+              <div
+                key={t.id}
+                className="rounded-md border border-neutral-200 p-4 text-sm dark:border-neutral-800"
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className={
+                      t.status === "approved"
+                        ? "font-medium text-green-700 dark:text-green-400"
+                        : "font-medium text-red-700 dark:text-red-400"
+                    }
+                  >
+                    {t.status === "approved" ? "Approved" : "Rejected"}
+                  </span>
+                  <span className="text-xs text-neutral-500">
+                    {new Date(t.approved_at ?? t.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <ul className="mt-2 space-y-1">
+                  {viewSides(t.id).map((s) => (
+                    <li key={s.managerId}>
+                      <span className="font-medium">{s.managerName}</span>{" "}
+                      receives {s.playersReceived.join(", ") || "—"}
+                      {s.cashAmount ? (
+                        <span className="text-neutral-500">
+                          {" "}
+                          ({s.cashAmount > 0 ? "+" : ""}
+                          {s.cashAmount} cash)
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+                {t.status === "rejected" && t.rejection_reason && (
+                  <p className="mt-2 text-neutral-500">
+                    Reason: {t.rejection_reason}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
