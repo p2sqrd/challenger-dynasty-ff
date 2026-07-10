@@ -4,10 +4,11 @@ Web app replacing the manual Google Sheet for the Challenger Fantasy Football
 dynasty/keeper league (Sleeper league `1180096336035880960`). Next.js +
 TypeScript, Supabase (Postgres + auth), deployed on Vercel.
 
-Phase 1 (this build): auth, manager accounts, historical `draft_records`,
-keeper selection → validation → commissioner approval → checklist, and the
-budget ledger. Trades (Phase 2) and live standings sync (Phase 3) are stubbed
-pages for now — see comments in each page.
+Phase 1: auth, manager accounts, historical `draft_records`, keeper selection
+→ validation → commissioner approval → checklist, and the budget ledger.
+Phase 2: trade auto-import from Sleeper, cash entry, commissioner approval,
+and tradeback warnings. Live standings sync (Phase 3) is still a static
+page — see the comment in `src/app/(app)/page.tsx`.
 
 ## Setup
 
@@ -59,7 +60,18 @@ pages for now — see comments in each page.
    Run this once a year when it's time for managers to start submitting
    keepers.
 
-7. **Run it**:
+7. **Sync trades from Sleeper** (once the season's draft has happened and
+   managers start trading):
+   ```bash
+   npx tsx scripts/sync-trades.ts
+   ```
+   Pulls completed trade transactions into `trades` and `trade_sides` as
+   `pending_cash`, matched to managers by Sleeper roster ID. Safe to re-run —
+   already-imported trades are skipped. `SLEEPER_LEAGUE_ID` must point at the
+   Sleeper league object for the season currently open in this app; update it
+   once Sleeper's commissioner tools roll the league over to a new season.
+
+8. **Run it**:
    ```bash
    npm run dev
    ```
@@ -88,3 +100,5 @@ npm test
   approve/reject endpoints. All writes go through these (service-role)
   routes rather than client-side inserts — see the comment atop
   `supabase/migrations/0001_init.sql` for why.
+- `src/app/api/trades/` — cash entry (manager) and approve/reject
+  (commissioner) endpoints. Same service-role pattern as keepers.
