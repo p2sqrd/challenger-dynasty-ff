@@ -66,7 +66,10 @@ async function main() {
     const year = Number(league.season);
     const { data: season, error: seasonError } = await supabase
       .from("seasons")
-      .upsert({ year, starting_budget: 200 }, { onConflict: "year" })
+      .upsert(
+        { year, starting_budget: 200, status: "closed" },
+        { onConflict: "year" }
+      )
       .select("id")
       .single();
     if (seasonError) throw seasonError;
