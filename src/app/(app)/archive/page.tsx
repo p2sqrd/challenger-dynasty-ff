@@ -1,3 +1,6 @@
+import { PageHeader } from "@/components/PageHeader";
+import { resolveTeam } from "@/lib/teams";
+
 interface Vote {
   manager: string;
   vote: string;
@@ -161,54 +164,70 @@ const FITNESS_ROWS: { event: string; results: (string | null)[] }[] = [
 export default function ArchivePage() {
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Archive</h1>
-      <p className="mt-2 text-sm text-neutral-500">
-        The historical record — old rule votes and punishment results, kept
-        around for posterity.
-      </p>
+      <PageHeader
+        title="Archive"
+        subtitle="The historical record — old rule votes and punishment results, kept around for posterity."
+      />
 
-      <section className="mt-8">
-        <h2 className="text-lg font-medium">23-24 rule proposal votes</h2>
-        <div className="mt-3 space-y-6">
+      <section>
+        <h2 className="nameplate-type text-lg text-ink">
+          23-24 rule proposal votes
+        </h2>
+        <div className="mt-4 space-y-4">
           {PROPOSALS.map((p) => (
             <div
               key={p.title}
-              className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800"
+              className="rounded-md border border-line bg-surface p-5"
             >
               <div className="flex items-baseline justify-between gap-4">
-                <h3 className="font-medium">{p.title}</h3>
-                <span className="shrink-0 text-xs text-neutral-500">
+                <h3 className="font-medium text-ink">{p.title}</h3>
+                <span className="tabular shrink-0 text-xs text-muted">
                   {p.date}
                 </span>
               </div>
-              <ul className="mt-3 space-y-1.5 text-sm">
-                {p.votes.map((v, i) => (
-                  <li key={i}>
-                    <span className="font-medium">{v.manager}:</span>{" "}
-                    <span>{v.vote}</span>
-                    {v.comment && (
-                      <span className="text-neutral-500"> — {v.comment}</span>
-                    )}
-                  </li>
-                ))}
+              <ul className="mt-4 space-y-2 text-sm">
+                {p.votes.map((v, i) => {
+                  const team = resolveTeam(v.manager);
+                  return (
+                    <li key={i} className="flex gap-2.5">
+                      <span
+                        aria-hidden
+                        className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: team.color }}
+                      />
+                      <span>
+                        <span className="font-medium text-ink">
+                          {v.manager}
+                        </span>
+                        <span className="text-muted"> · </span>
+                        <span className="text-ink">{v.vote}</span>
+                        {v.comment && (
+                          <span className="text-muted"> — {v.comment}</span>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="mt-10">
-        <h2 className="text-lg font-medium">Presidential Physical Fitness</h2>
-        <p className="mt-1 text-sm text-neutral-500">
+      <section className="mt-12">
+        <h2 className="nameplate-type text-lg text-ink">
+          Presidential Physical Fitness
+        </h2>
+        <p className="mt-1 text-sm text-muted">
           Results from managers who had to run the gauntlet.
         </p>
-        <div className="mt-3 overflow-x-auto">
+        <div className="mt-3 overflow-x-auto rounded-md border border-line bg-surface">
           <table className="w-full min-w-[600px] text-sm">
             <thead>
-              <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800">
-                <th className="py-2 pr-4 font-normal" />
+              <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">
+                <th className="py-3 pl-4 pr-4 text-left font-medium" />
                 {FITNESS_PEOPLE.map((p) => (
-                  <th key={p} className="py-2 pr-4 font-normal">
+                  <th key={p} className="py-3 pr-4 text-left font-medium">
                     {p}
                   </th>
                 ))}
@@ -216,13 +235,12 @@ export default function ArchivePage() {
             </thead>
             <tbody>
               {FITNESS_ROWS.map((row) => (
-                <tr
-                  key={row.event}
-                  className="border-b border-neutral-100 dark:border-neutral-900"
-                >
-                  <td className="py-2 pr-4 font-medium">{row.event}</td>
+                <tr key={row.event} className="border-b border-line last:border-0">
+                  <td className="py-3 pl-4 pr-4 font-medium text-ink">
+                    {row.event}
+                  </td>
                   {row.results.map((r, i) => (
-                    <td key={i} className="py-2 pr-4 text-neutral-500">
+                    <td key={i} className="tabular py-3 pr-4 text-muted">
                       {r ?? "—"}
                     </td>
                   ))}

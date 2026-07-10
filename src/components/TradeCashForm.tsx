@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Nameplate } from "./Nameplate";
 
 interface Side {
   managerId: string;
@@ -52,33 +53,55 @@ export function TradeCashForm({
   }
 
   return (
-    <div className="rounded-md border border-neutral-200 p-4 text-sm dark:border-neutral-800">
-      <p>
-        You receive: {mySide?.playersReceived.join(", ") || "—"}
-      </p>
-      <p className="mt-1 text-neutral-500">
-        You send: {otherSides.flatMap((s) => s.playersReceived).join(", ") || "—"}
-      </p>
-      <div className="mt-3 flex items-center gap-2">
-        <label htmlFor={`cash-${tradeId}`} className="text-neutral-500">
-          Cash (negative if you&apos;re paying):
+    <div className="rounded-md border border-line bg-surface p-5 text-sm">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <div className="text-xs uppercase tracking-wide text-muted">
+            You receive
+          </div>
+          <div className="mt-1.5 text-ink">
+            {mySide?.playersReceived.join(", ") || "—"}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs uppercase tracking-wide text-muted">
+            You send
+          </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+            {otherSides.map((s) => (
+              <span key={s.managerId} className="text-ink">
+                {s.playersReceived.join(", ") || "—"}
+              </span>
+            ))}
+          </div>
+          <div className="mt-1">
+            {otherSides.map((s) => (
+              <Nameplate key={s.managerId} alias={s.managerName} size="sm" />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
+        <label htmlFor={`cash-${tradeId}`} className="text-muted">
+          Cash (negative if you&apos;re paying)
         </label>
         <input
           id={`cash-${tradeId}`}
           type="number"
           value={cashAmount}
           onChange={(e) => setCashAmount(e.target.value)}
-          className="w-20 rounded border border-neutral-300 px-2 py-1 dark:border-neutral-700 dark:bg-neutral-900"
+          className="tabular w-24 rounded border border-line bg-canvas px-2 py-1 text-ink"
         />
         <button
           onClick={handleSubmit}
           disabled={submitting}
-          className="rounded-md bg-neutral-900 px-3 py-1 font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+          className="rounded-md bg-brand px-3 py-1.5 font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
         >
-          {submitting ? "Submitting..." : "Submit"}
+          {submitting ? "Submitting…" : "Submit"}
         </button>
       </div>
-      {error && <p className="mt-2 text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-rejected">{error}</p>}
     </div>
   );
 }

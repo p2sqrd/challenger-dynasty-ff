@@ -2,17 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
-interface Side {
-  managerId: string;
-  managerName: string;
-  playersReceived: string[];
-  cashAmount: number | null;
-}
+import { TradeSidesView, type TradeSideView } from "./TradeSides";
 
 interface Trade {
   id: string;
-  sides: Side[];
+  sides: TradeSideView[];
   warnings: string[];
 }
 
@@ -28,7 +22,11 @@ export function TradeApprovalQueue({ trades }: { trades: Trade[] }) {
   }
 
   if (trades.length === 0) {
-    return <p className="mt-2 text-sm text-neutral-500">Nothing pending.</p>;
+    return (
+      <p className="mt-3 text-sm text-muted">
+        Nothing pending — trades land here once both sides enter their cash.
+      </p>
+    );
   }
 
   return (
@@ -36,44 +34,30 @@ export function TradeApprovalQueue({ trades }: { trades: Trade[] }) {
       {trades.map((t) => (
         <div
           key={t.id}
-          className="rounded-md border border-neutral-200 p-4 text-sm dark:border-neutral-800"
+          className="rounded-md border border-line bg-surface p-5"
         >
-          <ul className="space-y-1">
-            {t.sides.map((s) => (
-              <li key={s.managerId}>
-                <span className="font-medium">{s.managerName}</span> receives{" "}
-                {s.playersReceived.join(", ") || "—"}
-                {s.cashAmount ? (
-                  <span className="text-neutral-500">
-                    {" "}
-                    ({s.cashAmount > 0 ? "+" : ""}
-                    {s.cashAmount} cash)
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+          <TradeSidesView sides={t.sides} />
 
           {t.warnings.length > 0 && (
-            <div className="mt-3 rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            <div className="mt-4 rounded-md border border-[rgba(232,163,61,0.35)] bg-[rgba(232,163,61,0.10)] p-3 text-sm text-pending">
               {t.warnings.map((w, i) => (
                 <p key={i}>⚠ {w}</p>
               ))}
             </div>
           )}
 
-          <div className="mt-3">
+          <div className="mt-4 flex items-center gap-2 border-t border-line pt-4">
             <button
               onClick={() => act(t.id, "approve")}
               disabled={pendingId === t.id}
-              className="mr-2 rounded bg-green-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+              className="rounded-md bg-[rgba(76,175,109,0.14)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-approved transition-colors hover:bg-[rgba(76,175,109,0.24)] disabled:opacity-40"
             >
               Approve
             </button>
             <button
               onClick={() => act(t.id, "reject")}
               disabled={pendingId === t.id}
-              className="rounded bg-red-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+              className="rounded-md bg-[rgba(229,72,77,0.14)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rejected transition-colors hover:bg-[rgba(229,72,77,0.24)] disabled:opacity-40"
             >
               Reject
             </button>

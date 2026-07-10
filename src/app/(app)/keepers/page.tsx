@@ -1,8 +1,19 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
 import { getAllPlayers, getLeagueRosters } from "@/lib/sleeper/client";
+import { resolveTeam } from "@/lib/teams";
+import { PageHeader } from "@/components/PageHeader";
+import { Nameplate } from "@/components/Nameplate";
 import { KeeperSelectionForm } from "@/components/KeeperSelectionForm";
 import type { EligiblePlayer } from "@/components/KeeperSelectionForm";
+
+function Notice({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-md border border-line bg-surface p-5 text-sm text-muted">
+      {children}
+    </div>
+  );
+}
 
 export default async function KeepersPage() {
   const supabase = await createClient();
@@ -10,12 +21,17 @@ export default async function KeepersPage() {
 
   if (!manager) {
     return (
-      <p className="text-sm text-neutral-500">
-        Your login isn&apos;t linked to a manager yet — ask your commissioner
-        to add your email to your manager record.
-      </p>
+      <>
+        <PageHeader title="Keepers" />
+        <Notice>
+          Your login isn&apos;t linked to a manager yet — ask your commissioner
+          to add your email to your manager record.
+        </Notice>
+      </>
     );
   }
+
+  const team = resolveTeam(manager.display_name);
 
   const { data: activeSeason } = await supabase
     .from("seasons")
@@ -25,9 +41,12 @@ export default async function KeepersPage() {
 
   if (!activeSeason) {
     return (
-      <p className="text-sm text-neutral-500">
-        No active season configured yet — ask your commissioner to open one.
-      </p>
+      <>
+        <PageHeader title="Keepers" />
+        <Notice>
+          No active season configured yet — ask your commissioner to open one.
+        </Notice>
+      </>
     );
   }
 
@@ -90,22 +109,26 @@ export default async function KeepersPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold">
-        {activeSeason.year} Keeper Selection
-      </h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        Starting budget ${activeSeason.starting_budget}. Keeping a player
-        commits next season&apos;s budget — the remaining total must stay
-        between $125 and $275.
-      </p>
+      <PageHeader
+        title={`${activeSeason.year} Keepers`}
+        subtitle="Keeping a player commits next season's budget. Your remaining total must stay between $125 and $275."
+        right={<Nameplate team={team} />}
+      />
 
       {alreadyApproved ? (
-        <div className="mt-6 rounded-md border border-neutral-200 p-4 text-sm dark:border-neutral-800">
-          Your keepers for {activeSeason.year} are approved and locked in.
-          <ul className="mt-2 list-disc pl-5">
+        <div className="rounded-md border border-line bg-surface p-5">
+          <div className="flex items-center gap-2 text-sm text-approved">
+            <span className="inline-block h-2 w-2 rounded-full bg-approved" />
+            Your {activeSeason.year} keepers are approved and locked in.
+          </div>
+          <ul className="mt-4 divide-y divide-line">
             {(existingKeepers ?? []).map((k) => (
-              <li key={k.id}>
-                {k.player_name} — ${k.new_price}
+              <li
+                key={k.id}
+                className="flex items-center justify-between py-2 text-sm"
+              >
+                <span className="text-ink">{k.player_name}</span>
+                <span className="tabular text-ink">${k.new_price}</span>
               </li>
             ))}
           </ul>

@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
 import { getAllPlayers } from "@/lib/sleeper/client";
 import { detectTradeback, type PlayerTradeEvent } from "@/lib/rules/tradeback";
+import { PageHeader } from "@/components/PageHeader";
+import { StatusBadge } from "@/components/StatusBadge";
+import { TradeSidesView } from "@/components/TradeSides";
 import { TradeCashForm } from "@/components/TradeCashForm";
 import { TradeApprovalQueue } from "@/components/TradeApprovalQueue";
 
@@ -191,17 +194,18 @@ export default async function TradesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Trades — {activeSeason.year}</h1>
-      <p className="mt-2 text-sm text-neutral-500">
-        New trades are pulled in from Sleeper automatically. If one you just
-        made isn&apos;t showing up yet, ask your commissioner to run the sync.
-      </p>
+      <PageHeader
+        title={`Trades · ${activeSeason.year}`}
+        subtitle="New trades are pulled in from Sleeper automatically. If one you just made isn't showing up yet, ask your commissioner to run the sync."
+      />
 
       {manager && (
-        <section className="mt-8">
-          <h2 className="text-lg font-medium">Needs your cash entry</h2>
+        <section>
+          <h2 className="nameplate-type text-lg text-ink">
+            Needs your cash entry
+          </h2>
           {needsMyCash.length === 0 ? (
-            <p className="mt-2 text-sm text-neutral-500">Nothing pending.</p>
+            <p className="mt-2 text-sm text-muted">Nothing pending.</p>
           ) : (
             <div className="mt-3 space-y-4">
               {needsMyCash.map((t) => (
@@ -218,8 +222,8 @@ export default async function TradesPage() {
       )}
 
       {manager?.role === "commissioner" && (
-        <section className="mt-10">
-          <h2 className="text-lg font-medium">Pending approval</h2>
+        <section className="mt-12">
+          <h2 className="nameplate-type text-lg text-ink">Pending approval</h2>
           <TradeApprovalQueue
             trades={pendingApproval.map((t) => ({
               id: t.id,
@@ -230,50 +234,30 @@ export default async function TradesPage() {
         </section>
       )}
 
-      <section className="mt-10">
-        <h2 className="text-lg font-medium">History</h2>
+      <section className="mt-12">
+        <h2 className="nameplate-type text-lg text-ink">History</h2>
         {history.length === 0 ? (
-          <p className="mt-2 text-sm text-neutral-500">
+          <p className="mt-2 text-sm text-muted">
             No resolved trades yet this season.
           </p>
         ) : (
-          <div className="mt-3 space-y-3">
+          <div className="mt-3 space-y-4">
             {history.map((t) => (
               <div
                 key={t.id}
-                className="rounded-md border border-neutral-200 p-4 text-sm dark:border-neutral-800"
+                className="rounded-md border border-line bg-surface p-5"
               >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={
-                      t.status === "approved"
-                        ? "font-medium text-green-700 dark:text-green-400"
-                        : "font-medium text-red-700 dark:text-red-400"
-                    }
-                  >
-                    {t.status === "approved" ? "Approved" : "Rejected"}
-                  </span>
-                  <span className="text-xs text-neutral-500">
+                <div className="mb-4 flex items-center justify-between">
+                  <StatusBadge
+                    status={t.status === "approved" ? "approved" : "rejected"}
+                  />
+                  <span className="tabular text-xs text-muted">
                     {new Date(t.approved_at ?? t.created_at).toLocaleDateString()}
                   </span>
                 </div>
-                <ul className="mt-2 space-y-1">
-                  {viewSides(t.id).map((s) => (
-                    <li key={s.managerId}>
-                      <span className="font-medium">{s.managerName}</span>{" "}
-                      receives {s.playersReceived.join(", ") || "—"}
-                      {s.cashAmount ? (
-                        <span className="text-neutral-500">
-                          {" "}
-                          ({s.cashAmount > 0 ? "+" : ""}
-                          {s.cashAmount} cash)
-                        </span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
+                <TradeSidesView sides={viewSides(t.id)} />
                 {t.status === "rejected" && t.rejection_reason && (
-                  <p className="mt-2 text-neutral-500">
+                  <p className="mt-3 border-t border-line pt-3 text-sm text-muted">
                     Reason: {t.rejection_reason}
                   </p>
                 )}

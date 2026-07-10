@@ -1,57 +1,46 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
+import { resolveTeam } from "@/lib/teams";
+import { NavLinks } from "./NavLinks";
+import { Nameplate } from "./Nameplate";
 import { SignOutButton } from "./SignOutButton";
-
-const LINKS = [
-  { href: "/", label: "Standings" },
-  { href: "/trades", label: "Trades" },
-  { href: "/keepers", label: "Keepers" },
-  { href: "/rules", label: "Rules" },
-  { href: "/archive", label: "Archive" },
-];
 
 export async function Nav() {
   const supabase = await createClient();
   const manager = await getCurrentManager(supabase);
+  const team = manager ? resolveTeam(manager.display_name) : null;
+
+  const links = [
+    { href: "/", label: "Standings", match: "exact" as const },
+    { href: "/trades", label: "Trades", match: "exact" as const },
+    { href: "/keepers", label: "Keepers", match: "exact" as const },
+    { href: "/rules", label: "Rules", match: "exact" as const },
+    { href: "/archive", label: "Archive", match: "exact" as const },
+    ...(manager
+      ? [{ href: `/budget/${manager.id}`, label: "Budget", match: "prefix" as const }]
+      : []),
+    ...(manager?.role === "commissioner"
+      ? [{ href: "/keepers/approve", label: "Approval", match: "prefix" as const }]
+      : []),
+  ];
 
   return (
-    <header className="flex items-center justify-between border-b border-neutral-200 px-6 py-4 dark:border-neutral-800">
-      <nav className="flex items-center gap-5">
-        <span className="font-semibold">Challenger Dynasty FF</span>
-        {LINKS.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-          >
-            {link.label}
+    <header className="sticky top-0 z-20 border-b border-line bg-canvas/95 backdrop-blur">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-3">
+        <div className="flex min-w-0 items-center gap-5">
+          <Link href="/" className="flex shrink-0 items-center gap-2">
+            <span aria-hidden className="h-5 w-1.5 rounded-sm bg-brand" />
+            <span className="nameplate-type whitespace-nowrap text-base leading-none text-ink">
+              Challenger Dynasty
+            </span>
           </Link>
-        ))}
-        {manager && (
-          <Link
-            href={`/budget/${manager.id}`}
-            className="text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-          >
-            My Budget
-          </Link>
-        )}
-        {manager?.role === "commissioner" && (
-          <Link
-            href="/keepers/approve"
-            className="text-sm font-medium text-neutral-900 dark:text-neutral-100"
-          >
-            Approval Queue
-          </Link>
-        )}
-      </nav>
-      <div className="flex items-center gap-3">
-        {manager && (
-          <span className="text-sm text-neutral-500">
-            {manager.display_name}
-          </span>
-        )}
-        <SignOutButton />
+          <NavLinks links={links} />
+        </div>
+        <div className="flex shrink-0 items-center gap-4">
+          {team && <Nameplate team={team} size="sm" />}
+          <SignOutButton />
+        </div>
       </div>
     </header>
   );
