@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
+import { PageHeader } from "@/components/PageHeader";
+import { Nameplate } from "@/components/Nameplate";
 import { ApprovalQueue } from "@/components/ApprovalQueue";
 
 export default async function KeeperApprovalPage() {
@@ -8,9 +10,10 @@ export default async function KeeperApprovalPage() {
 
   if (manager?.role !== "commissioner") {
     return (
-      <p className="text-sm text-neutral-500">
-        Commissioner access only.
-      </p>
+      <>
+        <PageHeader title="Approval Queue" />
+        <p className="text-sm text-muted">Commissioner access only.</p>
+      </>
     );
   }
 
@@ -21,7 +24,12 @@ export default async function KeeperApprovalPage() {
     .single();
 
   if (!activeSeason) {
-    return <p className="text-sm text-neutral-500">No active season.</p>;
+    return (
+      <>
+        <PageHeader title="Approval Queue" />
+        <p className="text-sm text-muted">No active season.</p>
+      </>
+    );
   }
 
   const { data: managers } = await supabase
@@ -52,12 +60,13 @@ export default async function KeeperApprovalPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold">
-        Keeper Approval Queue — {activeSeason.year}
-      </h1>
+      <PageHeader
+        title="Approval Queue"
+        subtitle={`${activeSeason.year} keeper submissions awaiting your review.`}
+      />
 
-      <section className="mt-6">
-        <h2 className="text-lg font-medium">Pending submissions</h2>
+      <section>
+        <h2 className="nameplate-type text-lg text-ink">Pending submissions</h2>
         <ApprovalQueue
           submissions={(submitted ?? []).map((k) => ({
             ...k,
@@ -66,25 +75,38 @@ export default async function KeeperApprovalPage() {
         />
       </section>
 
-      <section className="mt-10">
-        <h2 className="text-lg font-medium">
-          Commissioner checklist — approved keepers to key into Sleeper
+      <section className="mt-12">
+        <h2 className="nameplate-type text-lg text-ink">
+          Commissioner checklist
         </h2>
-        {approvedByManager.size === 0 && (
-          <p className="mt-2 text-sm text-neutral-500">Nothing approved yet.</p>
-        )}
-        {Array.from(approvedByManager.entries()).map(([managerId, keepers]) => (
-          <div key={managerId} className="mt-4">
-            <h3 className="font-medium">{nameById.get(managerId) ?? managerId}</h3>
-            <ul className="mt-1 list-disc pl-5 text-sm">
-              {(keepers ?? []).map((k) => (
-                <li key={k.id}>
-                  {k.player_name} — ${k.new_price}
-                </li>
-              ))}
-            </ul>
+        <p className="mt-1 text-sm text-muted">
+          Approved keepers to key into Sleeper before the draft.
+        </p>
+        {approvedByManager.size === 0 ? (
+          <p className="mt-3 text-sm text-muted">Nothing approved yet.</p>
+        ) : (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {Array.from(approvedByManager.entries()).map(([managerId, keepers]) => (
+              <div
+                key={managerId}
+                className="rounded-md border border-line bg-surface p-4"
+              >
+                <Nameplate alias={nameById.get(managerId) ?? managerId} size="sm" />
+                <ul className="mt-3 divide-y divide-line">
+                  {(keepers ?? []).map((k) => (
+                    <li
+                      key={k.id}
+                      className="flex items-center justify-between py-2 text-sm"
+                    >
+                      <span className="text-ink">{k.player_name}</span>
+                      <span className="tabular text-ink">${k.new_price}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </section>
     </div>
   );

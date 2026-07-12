@@ -5,6 +5,7 @@ import { computeKeeperPrice } from "@/lib/rules/keeper-pricing";
 import {
   validateKeeperBudget,
   validateKeeperCount,
+  DEFAULT_MIN_REMAINING_BUDGET,
 } from "@/lib/rules/budget-validation";
 import type { DraftSource, KeeperPriceRule } from "@/types/database";
 
@@ -90,6 +91,12 @@ export function KeeperSelectionForm({
   const canSubmit =
     budgetCheck.ok && countCheck.ok && allComputable && !submitting;
 
+  const remaining = budgetCheck.remainingBudget;
+  const belowFloor = remaining < DEFAULT_MIN_REMAINING_BUDGET;
+  // Meter fill across the full starting budget, with a floor marker.
+  const fillPct = Math.max(0, Math.min(100, (remaining / startingBudget) * 100));
+  const floorPct = Math.min(100, (DEFAULT_MIN_REMAINING_BUDGET / startingBudget) * 100);
+
   function toggle(playerId: string) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -133,97 +140,144 @@ export function KeeperSelectionForm({
 
   if (submitted) {
     return (
-      <p className="mt-6 rounded-md bg-green-50 p-4 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">
-        Submitted — this now sits in your commissioner&apos;s approval queue.
-      </p>
+      <div className="rounded-md border border-line bg-surface p-5">
+        <div className="flex items-center gap-2 text-sm text-approved">
+          <span className="inline-block h-2 w-2 rounded-full bg-approved" />
+          Submitted — this now sits in your commissioner&apos;s approval queue.
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="mt-6">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800">
-            <th className="py-2 font-normal">Keep</th>
-            <th className="py-2 font-normal">Player</th>
-            <th className="py-2 font-normal">Last price</th>
-            <th className="py-2 font-normal">New price</th>
-          </tr>
-        </thead>
-        <tbody>
-          {eligiblePlayers.map((player) => {
-            const isSelected = selected.has(player.playerId);
-            const price = priceFor(player);
-            return (
-              <tr
-                key={player.playerId}
-                className="border-b border-neutral-100 dark:border-neutral-900"
-              >
-                <td className="py-2">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggle(player.playerId)}
-                  />
-                </td>
-                <td className="py-2">{player.playerName}</td>
-                <td className="py-2 text-neutral-500">
-                  {player.priorRecord ? `$${player.priorRecord.price}` : "—"}
-                </td>
-                <td className="py-2">
-                  {!isSelected ? (
-                    "—"
-                  ) : player.priorRecord ? (
-                    `$${price.newPrice} (${price.priceRule.replace(/_/g, " ")})`
-                  ) : (
-                    <ManualPriceInputs
-                      value={manualEntries[player.playerId]}
-                      onChange={(entry) =>
-                        setManualEntries((prev) => ({
-                          ...prev,
-                          [player.playerId]: entry,
-                        }))
-                      }
+    <div>
+      <div className="overflow-hidden rounded-md border border-line bg-surface">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">
+              <th className="w-12 py-3 pl-4 pr-2 text-left font-medium">Keep</th>
+              <th className="py-3 pr-4 text-left font-medium">Player</th>
+              <th className="py-3 pr-4 text-right font-medium">Last</th>
+              <th className="py-3 pr-4 text-left font-medium">New price</th>
+            </tr>
+          </thead>
+          <tbody>
+            {eligiblePlayers.map((player) => {
+              const isSelected = selected.has(player.playerId);
+              const price = priceFor(player);
+              return (
+                <tr
+                  key={player.playerId}
+                  className={`border-b border-line last:border-0 ${
+                    isSelected ? "bg-surface-2" : ""
+                  }`}
+                >
+                  <td className="py-3 pl-4 pr-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggle(player.playerId)}
+                      className="h-4 w-4 accent-[var(--color-brand)]"
                     />
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  </td>
+                  <td className="py-3 pr-4 text-ink">{player.playerName}</td>
+                  <td className="tabular py-3 pr-4 text-right text-muted">
+                    {player.priorRecord ? `$${player.priorRecord.price}` : "—"}
+                  </td>
+                  <td className="py-3 pr-4">
+                    {!isSelected ? (
+                      <span className="text-muted">—</span>
+                    ) : player.priorRecord ? (
+                      <span className="flex items-center gap-2">
+                        <span className="tabular text-ink">
+                          ${price.newPrice}
+                        </span>
+                        <span className="rounded bg-canvas px-1.5 py-0.5 text-xs text-muted">
+                          {price.priceRule.replace(/_/g, " ")}
+                        </span>
+                      </span>
+                    ) : (
+                      <ManualPriceInputs
+                        value={manualEntries[player.playerId]}
+                        onChange={(entry) =>
+                          setManualEntries((prev) => ({
+                            ...prev,
+                            [player.playerId]: entry,
+                          }))
+                        }
+                      />
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
-      <div className="mt-4 space-y-1 text-sm">
-        <p>
-          Selected: {selected.size} / {maxKeepers} roster slots
-          {!countCheck.ok && (
-            <span className="ml-2 text-red-600">{countCheck.violations[0]}</span>
-          )}
-        </p>
-        <p>
-          Remaining budget for next auction: ${budgetCheck.remainingBudget}
-          {!budgetCheck.ok && (
-            <span className="ml-2 text-red-600">
-              {budgetCheck.violations[0]}
-            </span>
-          )}
-        </p>
+      {/* Budget meter — cap space for next year's auction. */}
+      <div className="mt-6 rounded-md border border-line bg-surface p-5">
+        <div className="flex items-end justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted">
+              Remaining for next auction
+            </div>
+            <div
+              className={`tabular mt-1 text-2xl font-semibold ${
+                belowFloor ? "text-rejected" : "text-ink"
+              }`}
+            >
+              ${remaining}
+            </div>
+          </div>
+          <div className="text-right text-xs text-muted">
+            {selected.size} / {maxKeepers} slots · ${totalSpend} committed
+          </div>
+        </div>
+
+        <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-canvas">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${fillPct}%`,
+              backgroundColor: belowFloor
+                ? "var(--color-rejected)"
+                : "var(--color-brand)",
+            }}
+          />
+          {/* Floor marker at $125 */}
+          <div
+            className="absolute top-0 h-full w-px bg-muted"
+            style={{ left: `${floorPct}%` }}
+            title="$125 floor"
+          />
+        </div>
+        <div className="mt-1.5 text-xs text-muted">
+          Must stay at or above the $125 floor (marker).
+        </div>
+
+        {!countCheck.ok && (
+          <p className="mt-3 text-sm text-rejected">{countCheck.violations[0]}</p>
+        )}
+        {!budgetCheck.ok && (
+          <p className="mt-1 text-sm text-rejected">{budgetCheck.violations[0]}</p>
+        )}
         {!allComputable && (
-          <p className="text-red-600">
-            Enter FAAB paid (or original auction price if drafted and
-            dropped) for every waiver-sourced player above before submitting.
+          <p className="mt-1 text-sm text-pending">
+            Enter FAAB paid (or original auction price if drafted and dropped)
+            for every waiver-sourced player before submitting.
           </p>
         )}
       </div>
 
-      {submitError && <p className="mt-2 text-sm text-red-600">{submitError}</p>}
+      {submitError && <p className="mt-3 text-sm text-rejected">{submitError}</p>}
 
       <button
         onClick={handleSubmit}
         disabled={!canSubmit}
-        className="mt-4 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+        className="mt-5 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
       >
-        {submitting ? "Submitting..." : "Submit keepers"}
+        {submitting ? "Submitting…" : "Submit keepers"}
       </button>
     </div>
   );
@@ -246,7 +300,7 @@ function ManualPriceInputs({
             basePrice: value?.basePrice ?? 0,
           })
         }
-        className="rounded border border-neutral-300 px-1 py-0.5 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+        className="rounded border border-line bg-canvas px-1.5 py-1 text-xs text-ink"
       >
         <option value="waiver_first_year">FAAB paid</option>
         <option value="drafted_and_dropped">Original auction price</option>
@@ -261,7 +315,7 @@ function ManualPriceInputs({
             basePrice: Number(e.target.value),
           })
         }
-        className="w-16 rounded border border-neutral-300 px-1 py-0.5 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+        className="tabular w-16 rounded border border-line bg-canvas px-1.5 py-1 text-xs text-ink"
       />
     </div>
   );

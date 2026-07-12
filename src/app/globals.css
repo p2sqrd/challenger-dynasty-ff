@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
+/*
+ * Dynasty League design tokens (visual design brief).
+ * Dark-only for v1: a broadcast scoreboard, not a spreadsheet. Color is
+ * reserved for meaning — team identity, site brand, achievement, status.
+ */
+@theme {
+  /* Neutrals (base UI) */
+  --color-canvas: #12151b; /* dark graphite background */
+  --color-surface: #1a1e26; /* cards, table rows */
+  --color-surface-2: #20252f; /* raised / hover */
+  --color-line: #2b303b; /* hairline / border */
+  --color-ink: #f1f3f6; /* text primary */
+  --color-muted: #8891a0; /* text secondary */
+
+  /* Brand accent — the platform's own color (buttons, links, active nav,
+   * chart axes, loading). Independent of any team. */
+  --color-brand: #22b8cf;
+  --color-brand-ink: #06232a; /* text on a brand-filled surface */
+
+  /* Achievement accent — sparse: championships, #1 rank, records only. */
+  --color-gold: #c9a227;
+
+  /* Status — strictly trade/keeper approval state. */
+  --color-pending: #e8a33d;
+  --color-approved: #4caf6d;
+  --color-rejected: #e5484d;
+
+  --font-display: var(--font-display-src), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-sans-src), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-src), ui-monospace, monospace;
+
+  --radius: 6px;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-canvas);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Numbers read like a ticker: monospaced, tabular, so columns align. */
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Stadium-signage headers. */
+.nameplate-type {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-brand) 35%, transparent);
 }

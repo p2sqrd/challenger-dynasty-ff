@@ -6,7 +6,7 @@ export default function AppLayout({
   return (
     <>
       <Nav />
-      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
         {children}
       </main>
     </>

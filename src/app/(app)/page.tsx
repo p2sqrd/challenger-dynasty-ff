@@ -1,3 +1,6 @@
+import { PageHeader } from "@/components/PageHeader";
+import { Nameplate } from "@/components/Nameplate";
+
 interface YearRecord {
   w: number | null;
   l: number | null;
@@ -39,92 +42,122 @@ const STANDINGS: ManagerStanding[] = [
 
 const BY_WIN_PCT = [...STANDINGS].sort((a, b) => b.winPct - a.winPct);
 
+function num(v: number | null) {
+  return v === null ? "—" : String(v);
+}
+
 export default function StandingsPage() {
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Standings</h1>
-      <p className="mt-2 text-sm text-neutral-500">
-        Career records through the 2025 season. Static for now — live sync
-        from Sleeper lands in Phase 3.
-      </p>
+      <PageHeader
+        title="Standings"
+        subtitle="Career records through the 2025 season. Static for now — live sync from Sleeper lands in Phase 3."
+      />
 
-      <section className="mt-6 overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
+      <div className="overflow-x-auto rounded-md border border-line bg-surface">
+        <table className="w-full min-w-[760px] text-sm">
           <thead>
-            <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800">
-              <th className="py-2 pr-4 font-normal">Manager</th>
-              <th className="py-2 pr-4 font-normal">W</th>
-              <th className="py-2 pr-4 font-normal">L</th>
-              <th className="py-2 pr-4 font-normal">Win%</th>
-              <th className="py-2 pr-4 font-normal">Reg. season titles</th>
-              <th className="py-2 pr-4 font-normal">Playoff apps</th>
-              <th className="py-2 pr-4 font-normal">Semifinals</th>
-              <th className="py-2 pr-4 font-normal">Finals</th>
-              <th className="py-2 pr-4 font-normal">Champs</th>
-              <th className="py-2 font-normal">Sacko</th>
+            <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">
+              <th className="w-12 py-3 pl-4 pr-2 text-left font-medium">#</th>
+              <th className="py-3 pr-4 text-left font-medium">Team</th>
+              <th className="py-3 pr-4 text-right font-medium">W</th>
+              <th className="py-3 pr-4 text-right font-medium">L</th>
+              <th className="py-3 pr-4 text-right font-medium">Pct</th>
+              <th className="py-3 pr-4 text-right font-medium" title="Regular-season titles">Titles</th>
+              <th className="py-3 pr-4 text-right font-medium" title="Playoff appearances">Playoffs</th>
+              <th className="py-3 pr-4 text-right font-medium" title="Finals appearances">Finals</th>
+              <th className="py-3 pr-4 text-right font-medium" title="Championships">Rings</th>
+              <th className="py-3 pr-4 text-right font-medium" title="Last-place finishes">Sacko</th>
+            </tr>
+          </thead>
+          <tbody>
+            {BY_WIN_PCT.map((m, i) => {
+              const isTop = i === 0;
+              const rings = m.champs ?? 0;
+              return (
+                <tr
+                  key={m.name}
+                  className="border-b border-line transition-colors last:border-0 hover:bg-surface-2"
+                >
+                  <td className="py-3 pl-4 pr-2">
+                    <span
+                      className={`tabular text-sm ${
+                        isTop ? "text-gold" : "text-muted"
+                      }`}
+                    >
+                      {i + 1}
+                    </span>
+                  </td>
+                  <td className="py-3 pr-4">
+                    <Nameplate alias={m.name} />
+                  </td>
+                  <td className="tabular py-3 pr-4 text-right text-ink">{m.w}</td>
+                  <td className="tabular py-3 pr-4 text-right text-muted">{m.l}</td>
+                  <td className="tabular py-3 pr-4 text-right text-ink">
+                    {(m.winPct * 100).toFixed(1)}
+                  </td>
+                  <td className="tabular py-3 pr-4 text-right text-muted">{num(m.rsTitles)}</td>
+                  <td className="tabular py-3 pr-4 text-right text-muted">{num(m.playoffApps)}</td>
+                  <td className="tabular py-3 pr-4 text-right text-muted">{num(m.finals)}</td>
+                  <td className="tabular py-3 pr-4 text-right">
+                    {rings > 0 ? (
+                      <span className="text-gold">★ {rings}</span>
+                    ) : (
+                      <span className="text-muted">{num(m.champs)}</span>
+                    )}
+                  </td>
+                  <td className="tabular py-3 pr-4 text-right text-muted">{num(m.sacko)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 className="nameplate-type mt-12 mb-4 text-xl text-ink">
+        Season by season
+      </h2>
+      <p className="-mt-2 mb-4 text-sm text-muted">
+        W-L each year, with playoff round reached in parentheses (0 = missed
+        playoffs).
+      </p>
+      <div className="overflow-x-auto rounded-md border border-line bg-surface">
+        <table className="w-full min-w-[920px] text-sm">
+          <thead>
+            <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">
+              <th className="py-3 pl-4 pr-4 text-left font-medium">Team</th>
+              {YEARS.map((year) => (
+                <th key={year} className="tabular py-3 pr-4 text-right font-medium">
+                  {year}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {BY_WIN_PCT.map((m) => (
               <tr
                 key={m.name}
-                className="border-b border-neutral-100 dark:border-neutral-900"
+                className="border-b border-line transition-colors last:border-0 hover:bg-surface-2"
               >
-                <td className="py-2 pr-4 font-medium">{m.name}</td>
-                <td className="py-2 pr-4">{m.w}</td>
-                <td className="py-2 pr-4">{m.l}</td>
-                <td className="py-2 pr-4">{(m.winPct * 100).toFixed(1)}%</td>
-                <td className="py-2 pr-4">{m.rsTitles ?? "—"}</td>
-                <td className="py-2 pr-4">{m.playoffApps ?? "—"}</td>
-                <td className="py-2 pr-4">{m.semis ?? "—"}</td>
-                <td className="py-2 pr-4">{m.finals ?? "—"}</td>
-                <td className="py-2 pr-4">{m.champs ?? "—"}</td>
-                <td className="py-2">{m.sacko ?? "—"}</td>
+                <td className="py-3 pl-4 pr-4">
+                  <Nameplate alias={m.name} size="sm" />
+                </td>
+                {YEARS.map((year) => {
+                  const rec = m.byYear[year];
+                  return (
+                    <td
+                      key={year}
+                      className="tabular py-3 pr-4 text-right text-muted"
+                    >
+                      {rec.w === null ? "—" : `${rec.w}-${rec.l} (${rec.playoffs})`}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
         </table>
-      </section>
-
-      <section className="mt-10">
-        <h2 className="text-lg font-medium">Season by season</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          W-L each year, with playoff round reached in parentheses (0 = missed
-          playoffs).
-        </p>
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead>
-              <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800">
-                <th className="py-2 pr-4 font-normal">Manager</th>
-                {YEARS.map((year) => (
-                  <th key={year} className="py-2 pr-4 font-normal">
-                    {year}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {BY_WIN_PCT.map((m) => (
-                <tr
-                  key={m.name}
-                  className="border-b border-neutral-100 dark:border-neutral-900"
-                >
-                  <td className="py-2 pr-4 font-medium">{m.name}</td>
-                  {YEARS.map((year) => {
-                    const rec = m.byYear[year];
-                    return (
-                      <td key={year} className="py-2 pr-4 text-neutral-500">
-                        {rec.w === null ? "—" : `${rec.w}-${rec.l} (${rec.playoffs})`}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      </div>
     </div>
   );
 }
