@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Nameplate } from "./Nameplate";
+import { EditableKeeperPrice } from "./EditableKeeperPrice";
 
 interface Submission {
   id: string;
@@ -51,9 +52,12 @@ export function ApprovalQueue({ submissions }: { submissions: Submission[] }) {
                 <Nameplate alias={s.managerName} size="sm" />
               </td>
               <td className="py-3 pr-4 text-ink">{s.player_name}</td>
-              <td className="tabular py-3 pr-4 text-right text-ink">
-                <span className="text-muted">${s.previous_price ?? "—"}</span>
-                <span className="mx-1 text-muted">→</span>${s.new_price}
+              <td className="py-3 pr-4 text-right">
+                <span className="tabular text-muted">
+                  ${s.previous_price ?? "—"}
+                </span>
+                <span className="mx-1 text-muted">→</span>
+                <EditableKeeperPrice keeperId={s.id} price={s.new_price} />
               </td>
               <td className="py-3 pr-4 text-muted">
                 {s.price_rule.replace(/_/g, " ")}

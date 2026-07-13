@@ -3,6 +3,7 @@ import { getCurrentManager } from "@/lib/managers";
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
 import { ApprovalQueue } from "@/components/ApprovalQueue";
+import { EditableKeeperPrice } from "@/components/EditableKeeperPrice";
 
 export default async function KeeperApprovalPage() {
   const supabase = await createClient();
@@ -99,7 +100,7 @@ export default async function KeeperApprovalPage() {
                       className="flex items-center justify-between py-2 text-sm"
                     >
                       <span className="text-ink">{k.player_name}</span>
-                      <span className="tabular text-ink">${k.new_price}</span>
+                      <EditableKeeperPrice keeperId={k.id} price={k.new_price} />
                     </li>
                   ))}
                 </ul>

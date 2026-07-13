@@ -60,7 +60,18 @@ page — see the comment in `src/app/(app)/page.tsx`.
    Run this once a year when it's time for managers to start submitting
    keepers.
 
-7. **Sync trades from Sleeper** (once the season's draft has happened and
+7. **Seed each manager's trade-adjusted auction budget** for the season:
+   ```bash
+   npx tsx scripts/seed-2026-budgets.ts
+   ```
+   Everyone starts at $200, adjusted by the prior season's cash trades (from
+   the "Draft Math" sheet) — e.g. Pranav's $177. This is a one-time backfill
+   of the opening position; going forward, in-app trades accumulate in the
+   ledger and set the next year's number automatically. Keeper spending is
+   validated against this per-manager budget and the 16-man roster (you can
+   keep players as long as $1 remains for every open spot).
+
+8. **Sync trades from Sleeper** (once the season's draft has happened and
    managers start trading):
    ```bash
    npx tsx scripts/sync-trades.ts
@@ -71,7 +82,7 @@ page — see the comment in `src/app/(app)/page.tsx`.
    Sleeper league object for the season currently open in this app; update it
    once Sleeper's commissioner tools roll the league over to a new season.
 
-8. **Run it**:
+9. **Run it**:
    ```bash
    npm run dev
    ```

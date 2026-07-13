@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
+import { getManagerAuctionBudget } from "@/lib/budget";
 import { getAllPlayers, getLeagueRosters } from "@/lib/sleeper/client";
 import { resolveTeam } from "@/lib/teams";
+import { ROSTER_SIZE } from "@/lib/rules/budget-validation";
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
 import { KeeperSelectionForm } from "@/components/KeeperSelectionForm";
@@ -74,6 +76,13 @@ export default async function KeepersPage() {
     (k) => k.status === "approved"
   );
 
+  const auctionBudget = await getManagerAuctionBudget(
+    supabase,
+    activeSeason.id,
+    manager.id,
+    activeSeason.starting_budget
+  );
+
   const leagueId = process.env.SLEEPER_LEAGUE_ID!;
   const [rosters, allPlayers] = await Promise.all([
     getLeagueRosters(leagueId),
@@ -111,7 +120,7 @@ export default async function KeepersPage() {
     <div>
       <PageHeader
         title={`${activeSeason.year} Keepers`}
-        subtitle="Keeping a player commits next season's budget. Your remaining total must stay between $125 and $275."
+        subtitle={`You have $${auctionBudget} for the auction. Keep as many players as you like, as long as you can still fill all ${ROSTER_SIZE} roster spots ($1 minimum each).`}
         right={<Nameplate team={team} />}
       />
 
@@ -136,8 +145,9 @@ export default async function KeepersPage() {
       ) : (
         <KeeperSelectionForm
           seasonId={activeSeason.id}
-          startingBudget={activeSeason.starting_budget}
-          maxKeepers={rosterPlayerIds.length || 16}
+          startingBudget={auctionBudget}
+          maxKeepers={Math.min(rosterPlayerIds.length || ROSTER_SIZE, ROSTER_SIZE)}
+          rosterSize={ROSTER_SIZE}
           eligiblePlayers={eligiblePlayers}
           existingSelections={existingKeepers ?? []}
         />

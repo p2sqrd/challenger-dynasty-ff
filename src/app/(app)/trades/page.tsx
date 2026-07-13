@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { TradeSidesView } from "@/components/TradeSides";
 import { TradeCashForm } from "@/components/TradeCashForm";
 import { TradeApprovalQueue } from "@/components/TradeApprovalQueue";
+import { ManualTradeForm } from "@/components/ManualTradeForm";
 
 interface TradeSideRow {
   trade_id: string;
@@ -224,6 +225,12 @@ export default async function TradesPage() {
       {manager?.role === "commissioner" && (
         <section className="mt-12">
           <h2 className="nameplate-type text-lg text-ink">Pending approval</h2>
+          <div className="mt-3">
+            <ManualTradeForm
+              seasonId={activeSeason.id}
+              managers={managers ?? []}
+            />
+          </div>
           <TradeApprovalQueue
             trades={pendingApproval.map((t) => ({
               id: t.id,
