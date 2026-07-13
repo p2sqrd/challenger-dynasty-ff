@@ -15,6 +15,7 @@ export async function Nav() {
     { href: "/", label: "Standings", match: "exact" as const },
     { href: "/trades", label: "Trades", match: "exact" as const },
     { href: "/keepers", label: "Keepers", match: "exact" as const },
+    { href: "/players", label: "Players", match: "prefix" as const },
     { href: "/rules", label: "Rules", match: "exact" as const },
     { href: "/archive", label: "Archive", match: "exact" as const },
     ...(manager

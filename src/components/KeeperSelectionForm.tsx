@@ -3,9 +3,8 @@
 import { useMemo, useState } from "react";
 import { computeKeeperPrice } from "@/lib/rules/keeper-pricing";
 import {
-  validateKeeperBudget,
-  validateKeeperCount,
-  DEFAULT_MIN_REMAINING_BUDGET,
+  validateKeeperRoster,
+  ROSTER_SIZE,
 } from "@/lib/rules/budget-validation";
 import type { DraftSource, KeeperPriceRule } from "@/types/database";
 
@@ -31,12 +30,14 @@ export function KeeperSelectionForm({
   seasonId,
   startingBudget,
   maxKeepers,
+  rosterSize = ROSTER_SIZE,
   eligiblePlayers,
   existingSelections,
 }: {
   seasonId: string;
   startingBudget: number;
   maxKeepers: number;
+  rosterSize?: number;
   eligiblePlayers: EligiblePlayer[];
   existingSelections: ExistingSelection[];
 }) {
@@ -79,23 +80,24 @@ export function KeeperSelectionForm({
   );
 
   const totalSpend = selections.reduce((sum, s) => sum + s.price.newPrice, 0);
-  const budgetCheck = validateKeeperBudget({
+  const roster = validateKeeperRoster({
     startingBudget,
     totalKeeperSpend: totalSpend,
-  });
-  const countCheck = validateKeeperCount({
     keeperCount: selected.size,
-    maxKeepers,
+    rosterSize,
   });
   const allComputable = selections.every((s) => s.price.computable);
-  const canSubmit =
-    budgetCheck.ok && countCheck.ok && allComputable && !submitting;
+  const canSubmit = roster.ok && allComputable && !submitting;
 
-  const remaining = budgetCheck.remainingBudget;
-  const belowFloor = remaining < DEFAULT_MIN_REMAINING_BUDGET;
-  // Meter fill across the full starting budget, with a floor marker.
+  const remaining = roster.remainingBudget;
+  // Meter fill = money left of the auction budget; the marker shows the
+  // minimum that must survive to fill the open roster spots at $1 each.
   const fillPct = Math.max(0, Math.min(100, (remaining / startingBudget) * 100));
-  const floorPct = Math.min(100, (DEFAULT_MIN_REMAINING_BUDGET / startingBudget) * 100);
+  const floorPct = Math.max(
+    0,
+    Math.min(100, (roster.minToFillRoster / startingBudget) * 100)
+  );
+  const belowFloor = remaining < roster.minToFillRoster;
 
   function toggle(playerId: string) {
     setSelected((prev) => {
@@ -215,15 +217,16 @@ export function KeeperSelectionForm({
         </table>
       </div>
 
-      {/* Budget meter — cap space for next year's auction. */}
-      <div className="mt-6 rounded-md border border-line bg-surface p-5">
-        <div className="flex items-end justify-between">
+      {/* Sticky summary — always visible so the auction total updates live as
+          players are toggled, without scrolling to the bottom. */}
+      <div className="sticky bottom-0 z-10 mt-6 rounded-md border border-line bg-surface p-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="text-xs uppercase tracking-wide text-muted">
-              Remaining for next auction
+              Remaining for auction
             </div>
             <div
-              className={`tabular mt-1 text-2xl font-semibold ${
+              className={`tabular mt-0.5 text-3xl font-semibold ${
                 belowFloor ? "text-rejected" : "text-ink"
               }`}
             >
@@ -231,7 +234,10 @@ export function KeeperSelectionForm({
             </div>
           </div>
           <div className="text-right text-xs text-muted">
-            {selected.size} / {maxKeepers} slots · ${totalSpend} committed
+            <div>
+              {selected.size} kept · {roster.emptySpots} open of {rosterSize}
+            </div>
+            <div className="tabular">${totalSpend} committed</div>
           </div>
         </div>
 
@@ -245,40 +251,39 @@ export function KeeperSelectionForm({
                 : "var(--color-brand)",
             }}
           />
-          {/* Floor marker at $125 */}
-          <div
-            className="absolute top-0 h-full w-px bg-muted"
-            style={{ left: `${floorPct}%` }}
-            title="$125 floor"
-          />
-        </div>
-        <div className="mt-1.5 text-xs text-muted">
-          Must stay at or above the $125 floor (marker).
+          {roster.minToFillRoster > 0 && (
+            <div
+              className="absolute top-0 h-full w-px bg-muted"
+              style={{ left: `${floorPct}%` }}
+              title={`Keep at least $${roster.minToFillRoster} to fill ${roster.emptySpots} open spots`}
+            />
+          )}
         </div>
 
-        {!countCheck.ok && (
-          <p className="mt-3 text-sm text-rejected">{countCheck.violations[0]}</p>
-        )}
-        {!budgetCheck.ok && (
-          <p className="mt-1 text-sm text-rejected">{budgetCheck.violations[0]}</p>
+        {!roster.ok && (
+          <p className="mt-3 text-sm text-rejected">{roster.violations[0]}</p>
         )}
         {!allComputable && (
-          <p className="mt-1 text-sm text-pending">
+          <p className="mt-2 text-sm text-pending">
             Enter FAAB paid (or original auction price if drafted and dropped)
             for every waiver-sourced player before submitting.
           </p>
         )}
+        {submitError && <p className="mt-2 text-sm text-rejected">{submitError}</p>}
+
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-xs text-muted">
+            You can keep up to {maxKeepers} of your rostered players.
+          </span>
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
+          >
+            {submitting ? "Submitting…" : "Submit keepers"}
+          </button>
+        </div>
       </div>
-
-      {submitError && <p className="mt-3 text-sm text-rejected">{submitError}</p>}
-
-      <button
-        onClick={handleSubmit}
-        disabled={!canSubmit}
-        className="mt-5 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
-      >
-        {submitting ? "Submitting…" : "Submit keepers"}
-      </button>
     </div>
   );
 }

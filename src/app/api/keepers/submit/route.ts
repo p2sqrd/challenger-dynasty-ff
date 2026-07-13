@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentManager } from "@/lib/managers";
+import { getManagerAuctionBudget } from "@/lib/budget";
 import {
-  validateKeeperBudget,
-  validateKeeperCount,
+  validateKeeperRoster,
+  ROSTER_SIZE,
 } from "@/lib/rules/budget-validation";
 import type { KeeperPriceRule } from "@/types/database";
 
@@ -66,19 +67,23 @@ export async function POST(request: Request) {
     }
   }
 
+  const auctionBudget = await getManagerAuctionBudget(
+    admin,
+    season.id,
+    manager.id,
+    season.starting_budget
+  );
   const totalSpend = body.selections.reduce((sum, s) => sum + s.newPrice, 0);
-  const budgetCheck = validateKeeperBudget({
-    startingBudget: season.starting_budget,
+  const rosterCheck = validateKeeperRoster({
+    startingBudget: auctionBudget,
     totalKeeperSpend: totalSpend,
-  });
-  const countCheck = validateKeeperCount({
     keeperCount: body.selections.length,
-    maxKeepers: 16,
+    rosterSize: ROSTER_SIZE,
   });
 
-  if (!budgetCheck.ok || !countCheck.ok) {
+  if (!rosterCheck.ok) {
     return NextResponse.json(
-      { error: [...budgetCheck.violations, ...countCheck.violations].join(" ") },
+      { error: rosterCheck.violations.join(" ") },
       { status: 400 }
     );
   }
