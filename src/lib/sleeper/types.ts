@@ -75,5 +75,7 @@ export interface SleeperTransaction {
   adds: Record<string, number> | null;
   drops: Record<string, number> | null;
   draft_picks: unknown[];
+  /** FAAB bid on a waiver claim lives in `settings.waiver_bid`. */
+  settings?: { waiver_bid?: number } | null;
   waiver_budget?: { sender: number; receiver: number; amount: number }[];
 }

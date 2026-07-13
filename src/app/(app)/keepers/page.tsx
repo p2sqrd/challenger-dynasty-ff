@@ -58,12 +58,15 @@ export default async function KeepersPage() {
     .eq("year", activeSeason.year - 1)
     .maybeSingle();
 
+  // Look up prior prices by player across the whole league, not just this
+  // manager's own draft picks — a keeper's salary follows the player through
+  // trades, so a player acquired mid-season is kept off whatever they were
+  // last drafted/kept for, regardless of who originally paid it.
   const { data: priorRecords } = priorSeason
     ? await supabase
         .from("draft_records")
         .select("*")
         .eq("season_id", priorSeason.id)
-        .eq("manager_id", manager.id)
     : { data: [] };
 
   const { data: existingKeepers } = await supabase
