@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Nameplate } from "./Nameplate";
 import { KeeperCostChart } from "./KeeperCostChart";
+import { PlayerAvatar } from "./PlayerAvatar";
 
 export interface PlayerDetail {
   playerId: string;
@@ -48,9 +49,16 @@ export function PlayerLookup({ players }: { players: PlayerDetail[] }) {
                     setSelectedId(p.playerId);
                     setQuery(p.playerName);
                   }}
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-ink hover:bg-surface-2"
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-ink hover:bg-surface-2"
                 >
-                  <span>{p.playerName}</span>
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <PlayerAvatar
+                      playerId={p.playerId}
+                      name={p.playerName}
+                      size={28}
+                    />
+                    <span className="truncate">{p.playerName}</span>
+                  </span>
                   {p.currentManager && (
                     <span className="text-xs text-muted">
                       {p.history[0]?.year ?? ""}
@@ -71,7 +79,12 @@ export function PlayerLookup({ players }: { players: PlayerDetail[] }) {
       {selected && (
         <div className="mt-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 className="nameplate-type text-2xl text-ink">
+            <h2 className="nameplate-type flex items-center gap-3 text-2xl text-ink">
+              <PlayerAvatar
+                playerId={selected.playerId}
+                name={selected.playerName}
+                size={44}
+              />
               {selected.playerName}
             </h2>
             <div className="flex items-center gap-2 text-sm">
