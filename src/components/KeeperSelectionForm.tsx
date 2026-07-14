@@ -6,6 +6,7 @@ import {
   validateKeeperRoster,
   ROSTER_SIZE,
 } from "@/lib/rules/budget-validation";
+import { BudgetTower, type TowerKeeper } from "./BudgetTower";
 import type { DraftSource, KeeperPriceRule } from "@/types/database";
 
 export interface EligiblePlayer {
@@ -88,16 +89,22 @@ export function KeeperSelectionForm({
   });
   const allComputable = selections.every((s) => s.price.computable);
   const canSubmit = roster.ok && allComputable && !submitting;
-
   const remaining = roster.remainingBudget;
-  // Meter fill = money left of the auction budget; the marker shows the
-  // minimum that must survive to fill the open roster spots at $1 each.
-  const fillPct = Math.max(0, Math.min(100, (remaining / startingBudget) * 100));
-  const floorPct = Math.max(
-    0,
-    Math.min(100, (roster.minToFillRoster / startingBudget) * 100)
-  );
-  const belowFloor = remaining < roster.minToFillRoster;
+
+  // Tower shows keepers newest-first: the `selected` Set keeps insertion
+  // order, so reversing it puts the most recently added keeper on top.
+  const towerSelections: TowerKeeper[] = useMemo(() => {
+    const byId = new Map(
+      selections.map((s) => [
+        s.player.playerId,
+        { name: s.player.playerName, newPrice: s.price.newPrice },
+      ])
+    );
+    return [...selected]
+      .filter((id) => byId.has(id))
+      .reverse()
+      .map((id) => ({ playerId: id, ...byId.get(id)! }));
+  }, [selected, selections]);
 
   function toggle(playerId: string) {
     setSelected((prev) => {
@@ -152,7 +159,8 @@ export function KeeperSelectionForm({
   }
 
   return (
-    <div>
+    <div className="lg:grid lg:grid-cols-[1fr_20rem] lg:items-start lg:gap-6">
+      {/* LEFT: pick list */}
       <div className="overflow-hidden rounded-md border border-line bg-surface">
         <table className="w-full text-sm">
           <thead>
@@ -217,51 +225,25 @@ export function KeeperSelectionForm({
         </table>
       </div>
 
-      {/* Sticky summary — always visible so the auction total updates live as
-          players are toggled, without scrolling to the bottom. */}
-      <div className="sticky bottom-0 z-10 mt-6 rounded-md border border-line bg-surface p-4">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted">
-              Remaining for auction
-            </div>
-            <div
-              className={`tabular mt-0.5 text-3xl font-semibold ${
-                belowFloor ? "text-rejected" : "text-ink"
-              }`}
-            >
-              ${remaining}
-            </div>
-          </div>
-          <div className="text-right text-xs text-muted">
-            <div>
-              {selected.size} kept · {roster.emptySpots} open of {rosterSize}
-            </div>
-            <div className="tabular">${totalSpend} committed</div>
-          </div>
-        </div>
+      {/* RIGHT: budget tower + submit, sticky on desktop */}
+      <div className="mt-6 lg:mt-0 lg:sticky lg:top-20">
+        <BudgetTower
+          budget={startingBudget}
+          selections={towerSelections}
+          emptySpots={roster.emptySpots}
+          minToFillRoster={roster.minToFillRoster}
+          remaining={remaining}
+          ok={roster.ok}
+          onRemove={toggle}
+        />
 
-        <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-canvas">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{
-              width: `${fillPct}%`,
-              backgroundColor: belowFloor
-                ? "var(--color-rejected)"
-                : "var(--color-brand)",
-            }}
-          />
-          {roster.minToFillRoster > 0 && (
-            <div
-              className="absolute top-0 h-full w-px bg-muted"
-              style={{ left: `${floorPct}%` }}
-              title={`Keep at least $${roster.minToFillRoster} to fill ${roster.emptySpots} open spots`}
-            />
-          )}
+        <div className="mt-3 text-xs text-muted">
+          {selected.size} kept · {roster.emptySpots} open of {rosterSize} · $
+          {totalSpend} committed
         </div>
 
         {!roster.ok && (
-          <p className="mt-3 text-sm text-rejected">{roster.violations[0]}</p>
+          <p className="mt-2 text-sm text-rejected">{roster.violations[0]}</p>
         )}
         {!allComputable && (
           <p className="mt-2 text-sm text-pending">
@@ -271,18 +253,16 @@ export function KeeperSelectionForm({
         )}
         {submitError && <p className="mt-2 text-sm text-rejected">{submitError}</p>}
 
-        <div className="mt-3 flex items-center justify-between">
-          <span className="text-xs text-muted">
-            You can keep up to {maxKeepers} of your rostered players.
-          </span>
-          <button
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
-          >
-            {submitting ? "Submitting…" : "Submit keepers"}
-          </button>
-        </div>
+        <button
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+          className="mt-3 w-full rounded-md bg-brand px-4 py-2 text-sm font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
+        >
+          {submitting ? "Submitting…" : "Submit keepers"}
+        </button>
+        <p className="mt-2 text-center text-xs text-muted">
+          You can keep up to {maxKeepers} of your rostered players.
+        </p>
       </div>
     </div>
   );
