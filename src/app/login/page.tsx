@@ -61,7 +61,7 @@ export default function LoginPage() {
           <p className="mt-1.5 text-sm text-muted">
             {step === "email"
               ? "Sign in with the email your commissioner has on file."
-              : `Enter the 6-digit code we sent to ${email}.`}
+              : `Enter the code we sent to ${email}.`}
           </p>
         </div>
       </div>
@@ -95,8 +95,10 @@ export default function LoginPage() {
             inputMode="numeric"
             autoComplete="one-time-code"
             required
-            maxLength={6}
-            placeholder="123456"
+            // Supabase's OTP length is configurable (this project uses 8);
+            // stay tolerant rather than hard-coding a length.
+            maxLength={10}
+            placeholder="········"
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             className="tabular rounded-md border border-line bg-surface px-3 py-2.5 text-center text-lg tracking-[0.4em] text-ink placeholder:tracking-normal placeholder:text-muted focus:border-brand focus:outline-none"
