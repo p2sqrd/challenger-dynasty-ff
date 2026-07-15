@@ -4,31 +4,50 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
+  const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
-    "idle"
-  );
+  const [code, setCode] = useState("");
+  const [status, setStatus] = useState<"idle" | "working">("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function requestCode(e: React.FormEvent) {
     e.preventDefault();
-    setStatus("sending");
+    setStatus("working");
     setErrorMessage("");
 
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { shouldCreateUser: true },
     });
 
+    setStatus("idle");
     if (error) {
-      setStatus("error");
       setErrorMessage(error.message);
       return;
     }
-    setStatus("sent");
+    setStep("code");
+  }
+
+  async function verifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    setStatus("working");
+    setErrorMessage("");
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token: code.trim(),
+      type: "email",
+    });
+
+    if (error) {
+      setStatus("idle");
+      setErrorMessage(error.message);
+      return;
+    }
+    // Session is now in cookies; hard-navigate so the server sees it.
+    window.location.replace("/");
   }
 
   return (
@@ -40,21 +59,19 @@ export default function LoginPage() {
             Challenger Dynasty
           </h1>
           <p className="mt-1.5 text-sm text-muted">
-            Sign in with the email your commissioner has on file.
+            {step === "email"
+              ? "Sign in with the email your commissioner has on file."
+              : `Enter the 6-digit code we sent to ${email}.`}
           </p>
         </div>
       </div>
 
-      {status === "sent" ? (
-        <div className="flex items-center gap-2 rounded-md border border-line bg-surface p-4 text-sm text-approved">
-          <span className="inline-block h-2 w-2 rounded-full bg-approved" />
-          Check your inbox for a magic link.
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      {step === "email" ? (
+        <form onSubmit={requestCode} className="flex flex-col gap-3">
           <input
             type="email"
             required
+            autoComplete="email"
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -62,14 +79,49 @@ export default function LoginPage() {
           />
           <button
             type="submit"
-            disabled={status === "sending"}
+            disabled={status === "working"}
             className="rounded-md bg-brand px-3 py-2.5 text-sm font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
           >
-            {status === "sending" ? "Sending…" : "Send magic link"}
+            {status === "working" ? "Sending…" : "Send login code"}
           </button>
-          {status === "error" && (
+          {errorMessage && (
             <p className="text-sm text-rejected">{errorMessage}</p>
           )}
+        </form>
+      ) : (
+        <form onSubmit={verifyCode} className="flex flex-col gap-3">
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            required
+            maxLength={6}
+            placeholder="123456"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            className="tabular rounded-md border border-line bg-surface px-3 py-2.5 text-center text-lg tracking-[0.4em] text-ink placeholder:tracking-normal placeholder:text-muted focus:border-brand focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={status === "working" || code.length < 6}
+            className="rounded-md bg-brand px-3 py-2.5 text-sm font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
+          >
+            {status === "working" ? "Verifying…" : "Verify & sign in"}
+          </button>
+          {errorMessage && (
+            <p className="text-sm text-rejected">{errorMessage}</p>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setStep("email");
+              setCode("");
+              setErrorMessage("");
+            }}
+            className="text-center text-xs text-muted hover:text-ink"
+          >
+            Use a different email
+          </button>
         </form>
       )}
     </main>
