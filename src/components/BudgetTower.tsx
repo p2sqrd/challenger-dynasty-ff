@@ -10,15 +10,19 @@ export interface TowerKeeper {
 
 const TOWER_H = 520; // px reference height = the full auction budget
 const MIN_CHUNK = 52; // px floor so a face + name stay legible on cheap keepers
+const FREE_MIN = 84; // px floor for the "left for auction" area so its text always fits
 const BRAND_FILL = "color-mix(in srgb, var(--color-brand) 16%, transparent)";
 const BRAND_EDGE = "color-mix(in srgb, var(--color-brand) 40%, transparent)";
 
 /**
- * The keeper budget as a stacked "tower". Height maps to the auction budget;
- * keepers stack from the bottom (newest on top) with a per-chunk height
- * proportional to price but floored so every headshot stays readable. Above
- * them sits the hatched roster-fill reserve ($1 per open spot) and then the
- * free-to-spend remainder. Clicking a chunk removes that keeper.
+ * The keeper budget as a stacked "tower". Its resting height maps to the
+ * auction budget; keepers stack from the bottom (newest on top) with a
+ * per-chunk height proportional to price but floored so every headshot stays
+ * readable. Above them sits the hatched roster-fill reserve ($1 per open
+ * spot) and then the free-to-spend remainder. Because the chunk floor can
+ * push the stack past the resting height, the tower *grows* to fit rather
+ * than squeezing the remainder area (which would clip its text). Clicking a
+ * chunk removes that keeper.
  */
 export function BudgetTower({
   budget,
@@ -49,11 +53,15 @@ export function BudgetTower({
       </div>
 
       <div
-        style={{ height: TOWER_H }}
-        className="flex flex-col overflow-y-auto rounded-md border border-line bg-canvas p-1.5"
+        style={{ minHeight: TOWER_H }}
+        className="flex flex-col overflow-hidden rounded-md border border-line bg-canvas p-1.5"
       >
-        {/* Free-to-spend remainder — fills whatever the keepers don't. */}
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-0.5 p-2 text-center">
+        {/* Free-to-spend remainder — grows to fill slack when the tower is at
+            its resting height; holds a floor so its text never gets clipped. */}
+        <div
+          style={{ minHeight: FREE_MIN }}
+          className="flex flex-1 flex-col items-center justify-center gap-0.5 p-2 text-center"
+        >
           {ok ? (
             <>
               <div className="tabular text-2xl font-semibold text-ink">
