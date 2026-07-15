@@ -111,26 +111,28 @@ function NavDropdown({
       </button>
 
       {open && (
-        <div
-          role="menu"
-          className="absolute left-0 top-full z-30 mt-2 min-w-[13rem] overflow-hidden rounded-md border border-line bg-surface py-1 shadow-lg"
-        >
-          {items.map((item) => {
-            const itemActive = isActive(item);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                role="menuitem"
-                onClick={() => setOpen(false)}
-                className={`block px-3 py-2 text-sm transition-colors hover:bg-surface-2 ${
-                  itemActive ? "text-brand" : "text-ink"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+        // top-full + pt-2 keeps the 8px visual gap as *hoverable* padding that
+        // touches the button, so moving the pointer down into the menu never
+        // crosses dead space (which would fire mouseleave and close it).
+        <div role="menu" className="absolute left-0 top-full z-30 min-w-[13rem] pt-2">
+          <div className="overflow-hidden rounded-md border border-line bg-surface py-1 shadow-lg">
+            {items.map((item) => {
+              const itemActive = isActive(item);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className={`block px-3 py-2 text-sm transition-colors hover:bg-surface-2 ${
+                    itemActive ? "text-brand" : "text-ink"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
