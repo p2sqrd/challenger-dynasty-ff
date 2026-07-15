@@ -3,14 +3,14 @@ import type { Database } from "@/types/database";
 
 /**
  * A manager's auction budget for a season — the money they bring into the
- * keeper/auction stage. It's the sum of their `starting_budget` ledger
- * entries, which bake in the prior season's cash trades (so it's $200 minus
- * whatever they traded away, e.g. Pranav's $177). In-season `trade` entries
- * roll into the *next* season's starting budget, and `keeper` deductions are
- * tracked separately, so both are intentionally excluded here.
+ * keeper/auction stage. It's the $200 base (`starting_budget`) plus every
+ * cash `trade` adjustment for the season, so a manager who traded money away
+ * brings less to the auction (e.g. Pranav's $200 − $23 = $177). `keeper`
+ * deductions are tracked separately in the keeper form, so they're excluded
+ * here.
  *
- * Falls back to the season's flat starting budget if a manager has no
- * starting_budget entry yet (e.g. before the annual budget seed is run).
+ * Falls back to the season's flat starting budget if a manager has no ledger
+ * entries yet (e.g. before the annual budget seed is run).
  */
 export async function getManagerAuctionBudget(
   supabase: SupabaseClient<Database>,
@@ -23,7 +23,7 @@ export async function getManagerAuctionBudget(
     .select("amount")
     .eq("season_id", seasonId)
     .eq("manager_id", managerId)
-    .eq("reason", "starting_budget");
+    .in("reason", ["starting_budget", "trade"]);
 
   if (!data || data.length === 0) return fallback;
   return data.reduce((sum, entry) => sum + entry.amount, 0);
