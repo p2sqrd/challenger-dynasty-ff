@@ -12,17 +12,22 @@ export async function Nav() {
   const team = manager ? resolveTeam(manager.display_name) : null;
 
   const links = [
-    { href: "/", label: "Standings", match: "exact" as const },
-    { href: "/trades", label: "Trades", match: "exact" as const },
-    { href: "/keepers", label: "Keepers", match: "exact" as const },
-    { href: "/players", label: "Players", match: "prefix" as const },
-    { href: "/rules", label: "Rules", match: "exact" as const },
-    { href: "/archive", label: "Archive", match: "exact" as const },
-    ...(manager
-      ? [{ href: `/budget/${manager.id}`, label: "Budget", match: "prefix" as const }]
-      : []),
+    { href: "/draft", label: "Draft", match: "prefix" as const },
+    { href: "/trades", label: "Trades", match: "prefix" as const },
+    { href: "/budget", label: "Budget", match: "prefix" as const },
+    {
+      href: "/archive",
+      label: "Archive",
+      children: [
+        { href: "/standings", label: "Historical Standings", match: "prefix" as const },
+        { href: "/players", label: "Players", match: "prefix" as const },
+        { href: "/rules", label: "Rules", match: "prefix" as const },
+        { href: "/proposals", label: "Rule Proposals", match: "prefix" as const },
+        { href: "/punishment", label: "Punishment Tracker", match: "prefix" as const },
+      ],
+    },
     ...(manager?.role === "commissioner"
-      ? [{ href: "/keepers/approve", label: "Approval", match: "prefix" as const }]
+      ? [{ href: "/commish", label: "Commish", match: "prefix" as const }]
       : []),
   ];
 
