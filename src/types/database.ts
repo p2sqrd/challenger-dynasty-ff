@@ -45,12 +45,29 @@ export interface Database {
           year: number;
           starting_budget: number;
           status: SeasonStatus;
+          keeper_deadline: string | null;
+          draft_datetime: string | null;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["seasons"]["Row"]> & {
           year: number;
         };
         Update: Partial<Database["public"]["Tables"]["seasons"]["Row"]>;
+        Relationships: [];
+      };
+      players: {
+        Row: {
+          player_id: string;
+          full_name: string;
+          position: string | null;
+          team: string | null;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["players"]["Row"]> & {
+          player_id: string;
+          full_name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["players"]["Row"]>;
         Relationships: [];
       };
       draft_records: {

@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
 import { ApprovalQueue } from "@/components/ApprovalQueue";
 import { EditableKeeperPrice } from "@/components/EditableKeeperPrice";
+import { DeadlineSettingsForm } from "@/components/DeadlineSettingsForm";
 
 export default async function CommishPage() {
   const supabase = await createClient();
@@ -63,10 +64,22 @@ export default async function CommishPage() {
     <div>
       <PageHeader
         title="Commish"
-        subtitle={`${activeSeason.year} keeper submissions awaiting your review.`}
+        subtitle={`Run the ${activeSeason.year} season.`}
       />
 
       <section>
+        <h2 className="nameplate-type text-lg text-ink">Deadlines</h2>
+        <p className="mb-4 mt-1 text-sm text-muted">
+          Set the keeper deadline and draft time. Saving updates the countdowns
+          for everyone, and keepers lock automatically when the deadline passes.
+        </p>
+        <DeadlineSettingsForm
+          keeperDeadline={activeSeason.keeper_deadline ?? null}
+          draftDatetime={activeSeason.draft_datetime ?? null}
+        />
+      </section>
+
+      <section className="mt-12">
         <h2 className="nameplate-type text-lg text-ink">Pending submissions</h2>
         <ApprovalQueue
           submissions={(submitted ?? []).map((k) => ({

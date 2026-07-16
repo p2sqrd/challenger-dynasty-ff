@@ -30,17 +30,17 @@ interface ManualEntry {
 export function KeeperSelectionForm({
   seasonId,
   startingBudget,
-  maxKeepers,
   rosterSize = ROSTER_SIZE,
   eligiblePlayers,
   existingSelections,
+  deadlineLabel,
 }: {
   seasonId: string;
   startingBudget: number;
-  maxKeepers: number;
   rosterSize?: number;
   eligiblePlayers: EligiblePlayer[];
   existingSelections: ExistingSelection[];
+  deadlineLabel?: string | null;
 }) {
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(existingSelections.map((s) => s.player_id))
@@ -50,7 +50,7 @@ export function KeeperSelectionForm({
   >({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   function priceFor(player: EligiblePlayer): {
     newPrice: number;
@@ -107,6 +107,7 @@ export function KeeperSelectionForm({
   }, [selected, selections]);
 
   function toggle(playerId: string) {
+    setSaved(false);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(playerId)) next.delete(playerId);
@@ -143,19 +144,8 @@ export function KeeperSelectionForm({
       return;
     }
 
-    setSubmitted(true);
+    setSaved(true);
     setSubmitting(false);
-  }
-
-  if (submitted) {
-    return (
-      <div className="rounded-md border border-line bg-surface p-5">
-        <div className="flex items-center gap-2 text-sm text-approved">
-          <span className="inline-block h-2 w-2 rounded-full bg-approved" />
-          Submitted — this now sits in your commissioner&apos;s approval queue.
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -258,10 +248,18 @@ export function KeeperSelectionForm({
           disabled={!canSubmit}
           className="mt-3 w-full rounded-md bg-brand px-4 py-2 text-sm font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
         >
-          {submitting ? "Submitting…" : "Submit keepers"}
+          {submitting ? "Submitting…" : saved ? "Update keepers" : "Submit keepers"}
         </button>
+        {saved && (
+          <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-approved">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-approved" />
+            Saved
+          </p>
+        )}
         <p className="mt-2 text-center text-xs text-muted">
-          You can keep up to {maxKeepers} of your rostered players.
+          {deadlineLabel
+            ? `You can keep editing until the keeper deadline (${deadlineLabel}).`
+            : "You can keep editing until the keeper deadline."}
         </p>
       </div>
     </div>

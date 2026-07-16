@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
-import { getAllPlayers } from "@/lib/sleeper/client";
+import { getPlayerNames } from "@/lib/players";
 import { detectTradeback, type PlayerTradeEvent } from "@/lib/rules/tradeback";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -63,14 +63,11 @@ export default async function TradesPage() {
     sidesByTradeId.set(side.trade_id, list);
   }
 
-  const allPlayers = await getAllPlayers();
-  const playerName = (playerId: string) => {
-    const p = allPlayers[playerId];
-    if (!p) return playerId;
-    return (
-      p.full_name || `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || playerId
-    );
-  };
+  const nameMap = await getPlayerNames(
+    supabase,
+    (sides ?? []).flatMap((s) => s.players_received)
+  );
+  const playerName = (playerId: string) => nameMap.get(playerId) ?? playerId;
 
   const allTrades = trades ?? [];
   const needsMyCash = manager
