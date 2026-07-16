@@ -41,16 +41,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Season is not open" }, { status: 400 });
   }
 
-  const { data: alreadyApproved } = await admin
-    .from("keepers")
-    .select("id")
-    .eq("season_id", season.id)
-    .eq("manager_id", manager.id)
-    .eq("status", "approved");
-
-  if (alreadyApproved && alreadyApproved.length > 0) {
+  // Keepers lock at the deadline, not on commissioner approval — once it
+  // passes, no more edits.
+  if (
+    season.keeper_deadline &&
+    new Date(season.keeper_deadline).getTime() <= Date.now()
+  ) {
     return NextResponse.json(
-      { error: "Keepers already approved for this season" },
+      { error: "The keeper deadline has passed — selections are locked." },
       { status: 400 }
     );
   }
@@ -88,12 +86,12 @@ export async function POST(request: Request) {
     );
   }
 
+  // Replace this manager's whole set each save (edit-until-deadline model).
   await admin
     .from("keepers")
     .delete()
     .eq("season_id", season.id)
-    .eq("manager_id", manager.id)
-    .eq("status", "submitted");
+    .eq("manager_id", manager.id);
 
   if (body.selections.length > 0) {
     const { error } = await admin.from("keepers").insert(

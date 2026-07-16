@@ -12,7 +12,7 @@ export async function Nav() {
   const team = manager ? resolveTeam(manager.display_name) : null;
 
   const links = [
-    { href: "/draft", label: "Draft", match: "prefix" as const },
+    { href: "/keepers", label: "Keepers", match: "prefix" as const },
     { href: "/trades", label: "Trades", match: "prefix" as const },
     { href: "/budget", label: "Budget", match: "prefix" as const },
     {
