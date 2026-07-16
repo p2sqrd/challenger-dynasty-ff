@@ -43,7 +43,11 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
+  // Exclude /api: those routes authenticate themselves (the keeper/trade
+  // routes return 401/403, the cron checks CRON_SECRET). Guarding them here
+  // would 302 unauthenticated calls — including the daily player-cache cron —
+  // to /login instead of letting them run.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
