@@ -131,6 +131,22 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["fire_sale_bids"]["Row"]>;
         Relationships: [];
       };
+      fire_sale_presence: {
+        Row: {
+          fire_sale_id: string;
+          manager_id: string;
+          last_seen: string;
+        };
+        Insert: {
+          fire_sale_id: string;
+          manager_id: string;
+          last_seen?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["fire_sale_presence"]["Row"]
+        >;
+        Relationships: [];
+      };
       draft_records: {
         Row: {
           id: string;

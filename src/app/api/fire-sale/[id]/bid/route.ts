@@ -61,6 +61,21 @@ export async function POST(
     );
   }
 
+  // Public (live) auctions are ascending — you must beat the current high bid.
+  if (sale.mode === "public") {
+    const { data: existing } = await admin
+      .from("fire_sale_bids")
+      .select("amount")
+      .eq("fire_sale_id", id);
+    const high = Math.max(0, ...(existing ?? []).map((b) => b.amount));
+    if ((amount as number) <= high) {
+      return NextResponse.json(
+        { error: `You have to beat the current high bid of $${high}.` },
+        { status: 400 }
+      );
+    }
+  }
+
   const { error } = await admin
     .from("fire_sale_bids")
     .upsert(
@@ -69,6 +84,17 @@ export async function POST(
     );
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Anti-snipe: a bid inside the final 10 seconds pushes the end out by 10s.
+  if (sale.mode === "public") {
+    const remaining = new Date(sale.deadline).getTime() - Date.now();
+    if (remaining <= 10_000) {
+      await admin
+        .from("fire_sales")
+        .update({ deadline: new Date(Date.now() + 10_000).toISOString() })
+        .eq("id", id);
+    }
   }
 
   return NextResponse.json({ ok: true });

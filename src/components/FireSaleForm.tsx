@@ -10,6 +10,7 @@ export function FireSaleForm({
 }) {
   const router = useRouter();
   const [playerId, setPlayerId] = useState("");
+  const [mode, setMode] = useState<"private" | "public">("private");
   const [minBid, setMinBid] = useState("1");
   const [deadline, setDeadline] = useState("");
   const [status, setStatus] = useState<"idle" | "saving">("idle");
@@ -27,6 +28,7 @@ export function FireSaleForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         playerId,
+        mode,
         minBid: Number(minBid) || 1,
         deadline: new Date(deadline).toISOString(),
       }),
@@ -49,6 +51,23 @@ export function FireSaleForm({
 
   return (
     <form onSubmit={submit} className="rounded-md border border-line bg-surface p-5">
+      <div className="mb-4 flex gap-2">
+        {(["private", "public"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+              mode === m
+                ? "border-brand text-brand"
+                : "border-line text-muted hover:text-ink"
+            }`}
+          >
+            {m === "private" ? "Private (sealed bids)" : "Public (live auction)"}
+          </button>
+        ))}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         <label className="flex flex-col gap-1.5 sm:col-span-3">
           <span className="text-xs uppercase tracking-wide text-muted">Player</span>
@@ -81,7 +100,7 @@ export function FireSaleForm({
 
         <label className="flex flex-col gap-1.5 sm:col-span-2">
           <span className="text-xs uppercase tracking-wide text-muted">
-            Bids close
+            {mode === "public" ? "Auction ends" : "Bids close"}
           </span>
           <input
             type="datetime-local"
@@ -101,7 +120,9 @@ export function FireSaleForm({
           {status === "saving" ? "Starting…" : "Start Fire Sale"}
         </button>
         <span className="text-xs text-muted">
-          Sealed bids — nobody sees others&apos; offers until you review them.
+          {mode === "public"
+            ? "Live ascending auction — everyone sees bids; a bid in the last 10s adds 10s."
+            : "Sealed bids — nobody sees others' offers until you review them."}
         </span>
       </div>
       {error && <p className="mt-2 text-sm text-rejected">{error}</p>}
