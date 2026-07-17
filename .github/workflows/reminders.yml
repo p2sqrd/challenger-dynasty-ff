@@ -1,0 +1,20 @@
+name: Deadline reminders
+
+# Vercel Hobby crons only run daily, so we ping the reminders endpoint from a
+# GitHub Actions schedule (~every 15 min) to catch the 24h/3h/1h windows.
+# Requires a repo secret CRON_SECRET matching the app's CRON_SECRET env var.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reminders
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -fsS "https://challenger-dynasty-ff.vercel.app/api/cron/reminders" \
+            -H "Authorization: Bearer ${CRON_SECRET}"

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentManager } from "@/lib/managers";
+import { notifyAll } from "@/lib/notify";
 
 const MAX_IMAGE_BYTES = 8_000_000; // generous ceiling after client compression
 const MAX_BODY_LEN = 2000;
@@ -62,6 +63,13 @@ export async function POST(request: Request) {
     if (imagePath) await admin.storage.from("trash-talk").remove([imagePath]);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await notifyAll(admin, {
+    title: "New trash talk",
+    body: `${manager.display_name} posted on the wall of shame.`,
+    link: "/trash-talk",
+    excludeManagerId: manager.id,
+  });
 
   return NextResponse.json({ ok: true });
 }

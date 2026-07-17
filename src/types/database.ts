@@ -147,6 +147,29 @@ export interface Database {
         >;
         Relationships: [];
       };
+      notifications: {
+        Row: {
+          id: string;
+          manager_id: string;
+          title: string;
+          body: string | null;
+          link: string | null;
+          created_at: string;
+          read_at: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["notifications"]["Row"]> & {
+          manager_id: string;
+          title: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["notifications"]["Row"]>;
+        Relationships: [];
+      };
+      reminder_log: {
+        Row: { key: string; created_at: string };
+        Insert: { key: string; created_at?: string };
+        Update: Partial<{ key: string; created_at: string }>;
+        Relationships: [];
+      };
       draft_records: {
         Row: {
           id: string;

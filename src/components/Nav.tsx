@@ -5,6 +5,7 @@ import { resolveTeam } from "@/lib/teams";
 import { NavLinks } from "./NavLinks";
 import { Nameplate } from "./Nameplate";
 import { SignOutButton } from "./SignOutButton";
+import { NotificationBell } from "./NotificationBell";
 
 export async function Nav() {
   const supabase = await createClient();
@@ -46,6 +47,7 @@ export async function Nav() {
           <NavLinks links={links} />
         </div>
         <div className="flex shrink-0 items-center gap-4">
+          {manager && <NotificationBell />}
           {team && <Nameplate team={team} size="sm" />}
           <SignOutButton />
         </div>
