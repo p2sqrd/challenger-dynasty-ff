@@ -30,6 +30,7 @@ export interface Database {
           display_name: string;
           email: string;
           role: ManagerRole;
+          onboarded_at: string | null;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["managers"]["Row"]> & {
