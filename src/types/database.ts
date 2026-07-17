@@ -70,6 +70,22 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["players"]["Row"]>;
         Relationships: [];
       };
+      trash_talk_posts: {
+        Row: {
+          id: string;
+          manager_id: string;
+          body: string | null;
+          image_path: string | null;
+          created_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["trash_talk_posts"]["Row"]
+        > & {
+          manager_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["trash_talk_posts"]["Row"]>;
+        Relationships: [];
+      };
       draft_records: {
         Row: {
           id: string;

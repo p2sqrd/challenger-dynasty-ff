@@ -15,6 +15,7 @@ export async function Nav() {
     { href: "/keepers", label: "Keepers", match: "prefix" as const },
     { href: "/trades", label: "Trades", match: "prefix" as const },
     { href: "/budget", label: "Budget", match: "prefix" as const },
+    { href: "/trash-talk", label: "Trash Talk", match: "prefix" as const },
     {
       href: "/archive",
       label: "Archive",
