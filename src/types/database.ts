@@ -16,6 +16,8 @@ export type KeeperPriceRule =
   | "drafted_and_dropped";
 export type KeeperStatus = "submitted" | "approved" | "rejected";
 export type LedgerReason = "trade" | "keeper" | "starting_budget" | "other";
+export type FireSaleMode = "private" | "public";
+export type FireSaleStatus = "active" | "accepted" | "rejected" | "cancelled";
 
 export interface Database {
   public: {
@@ -84,6 +86,49 @@ export interface Database {
           manager_id: string;
         };
         Update: Partial<Database["public"]["Tables"]["trash_talk_posts"]["Row"]>;
+        Relationships: [];
+      };
+      fire_sales: {
+        Row: {
+          id: string;
+          season_id: string;
+          seller_id: string;
+          player_id: string;
+          player_name: string;
+          mode: FireSaleMode;
+          min_bid: number;
+          deadline: string;
+          status: FireSaleStatus;
+          winner_id: string | null;
+          trade_id: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["fire_sales"]["Row"]> & {
+          season_id: string;
+          seller_id: string;
+          player_id: string;
+          player_name: string;
+          deadline: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["fire_sales"]["Row"]>;
+        Relationships: [];
+      };
+      fire_sale_bids: {
+        Row: {
+          id: string;
+          fire_sale_id: string;
+          bidder_id: string;
+          amount: number;
+          created_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["fire_sale_bids"]["Row"]
+        > & {
+          fire_sale_id: string;
+          bidder_id: string;
+          amount: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["fire_sale_bids"]["Row"]>;
         Relationships: [];
       };
       draft_records: {
