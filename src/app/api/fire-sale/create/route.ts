@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentManager } from "@/lib/managers";
 import { getLeagueRosters } from "@/lib/sleeper/client";
 import { getPlayerNames } from "@/lib/players";
+import { notifyAll } from "@/lib/notify";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -74,6 +75,13 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await notifyAll(admin, {
+    title: "New Fire Sale",
+    body: `${playerName} is on the block from ${manager.display_name}.`,
+    link: "/fire-sale",
+    excludeManagerId: manager.id,
+  });
 
   return NextResponse.json({ ok: true });
 }
