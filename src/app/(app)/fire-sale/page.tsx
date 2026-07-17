@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentManager } from "@/lib/managers";
@@ -19,6 +20,7 @@ interface Sale {
   seller_id: string;
   player_id: string;
   player_name: string;
+  mode: "private" | "public";
   min_bid: number;
   deadline: string;
   status: FireSaleStatus;
@@ -66,7 +68,7 @@ export default async function FireSalePage() {
     supabase.from("managers").select("id, display_name"),
     supabase
       .from("fire_sales")
-      .select("id, seller_id, player_id, player_name, min_bid, deadline, status, winner_id")
+      .select("id, seller_id, player_id, player_name, mode, min_bid, deadline, status, winner_id")
       .eq("season_id", season.id)
       .order("created_at", { ascending: false }),
   ]);
@@ -204,6 +206,16 @@ export default async function FireSalePage() {
                     {nameById.get(sale.seller_id) ?? "the seller"} to pick a
                     winner.{myBid !== null ? ` Your bid: $${myBid}.` : ""}
                   </p>
+                ) : sale.mode === "public" ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <Link
+                      href={`/fire-sale/${sale.id}`}
+                      className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-[var(--color-brand-ink)]"
+                    >
+                      Enter live auction →
+                    </Link>
+                    {isSeller && <FireSaleCancelButton saleId={sale.id} />}
+                  </div>
                 ) : isSeller ? (
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted">

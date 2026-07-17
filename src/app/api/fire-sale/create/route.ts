@@ -12,10 +12,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not linked to a manager" }, { status: 401 });
   }
 
-  const { playerId, minBid, deadline } = (await request
+  const { playerId, mode, minBid, deadline } = (await request
     .json()
     .catch(() => ({}))) as {
     playerId?: string;
+    mode?: string;
     minBid?: number;
     deadline?: string;
   };
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
   if (!playerId) {
     return NextResponse.json({ error: "Pick a player." }, { status: 400 });
   }
+  const saleMode = mode === "public" ? "public" : "private";
   const min = Number.isInteger(minBid) && (minBid as number) >= 1 ? (minBid as number) : 1;
   const when = deadline ? new Date(deadline) : null;
   if (!when || Number.isNaN(when.getTime())) {
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
     seller_id: manager.id,
     player_id: playerId,
     player_name: playerName,
-    mode: "private",
+    mode: saleMode,
     min_bid: min,
     deadline: when.toISOString(),
     status: "active",
