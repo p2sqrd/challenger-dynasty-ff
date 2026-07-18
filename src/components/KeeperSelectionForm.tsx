@@ -172,13 +172,17 @@ export function KeeperSelectionForm({
                     isSelected ? "bg-surface-2" : ""
                   }`}
                 >
-                  <td className="py-3 pl-4 pr-2">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggle(player.playerId)}
-                      className="h-4 w-4 accent-[var(--color-brand)]"
-                    />
+                  <td className="p-0">
+                    {/* Full-cell label → a comfortable ~44px tap target on
+                        phones, not just the 16px box. */}
+                    <label className="flex min-h-[44px] cursor-pointer items-center py-2 pl-4 pr-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggle(player.playerId)}
+                        className="h-5 w-5 accent-[var(--color-brand)]"
+                      />
+                    </label>
                   </td>
                   <td className="py-3 pr-4 text-ink">{player.playerName}</td>
                   <td className="tabular py-3 pr-4 text-right text-muted">

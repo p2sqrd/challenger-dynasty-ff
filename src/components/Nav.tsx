@@ -7,6 +7,7 @@ import { Nameplate } from "./Nameplate";
 import { SignOutButton } from "./SignOutButton";
 import { NotificationBell } from "./NotificationBell";
 import { OnboardingLauncher } from "./OnboardingLauncher";
+import { MobileMenu } from "./MobileMenu";
 
 export async function Nav() {
   const supabase = await createClient();
@@ -48,10 +49,26 @@ export async function Nav() {
           <NavLinks links={links} />
         </div>
         <div className="flex shrink-0 items-center gap-4">
-          {manager && <OnboardingLauncher autoOpen={manager.onboarded_at === null} />}
+          {/*
+            Below `lg` the tour launcher, nameplate, and sign out move into the
+            hamburger sheet. The OnboardingLauncher stays mounted (just hidden)
+            so its first-login auto-open still fires on phones.
+          */}
+          {manager && (
+            <span className="hidden lg:inline-flex">
+              <OnboardingLauncher autoOpen={manager.onboarded_at === null} />
+            </span>
+          )}
           {manager && <NotificationBell />}
-          {team && <Nameplate team={team} size="sm" />}
-          <SignOutButton />
+          {team && (
+            <span className="hidden lg:inline-flex">
+              <Nameplate team={team} size="sm" />
+            </span>
+          )}
+          <span className="hidden lg:inline-flex">
+            <SignOutButton />
+          </span>
+          {manager && <MobileMenu links={links} team={team} />}
         </div>
       </div>
     </header>

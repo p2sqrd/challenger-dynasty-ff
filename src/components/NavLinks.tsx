@@ -23,7 +23,8 @@ export function NavLinks({ links }: { links: NavLink[] }) {
   }
 
   return (
-    <nav className="flex items-center gap-0.5">
+    // Desktop only — below `lg` the links live in the hamburger menu.
+    <nav className="hidden items-center gap-0.5 lg:flex">
       {links.map((link) =>
         link.children ? (
           <NavDropdown
