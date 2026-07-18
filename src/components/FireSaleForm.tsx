@@ -100,7 +100,7 @@ export function FireSaleForm({
 
         <label className="flex flex-col gap-1.5 sm:col-span-2">
           <span className="text-xs uppercase tracking-wide text-muted">
-            {mode === "public" ? "Auction ends" : "Bids close"}
+            Bidding closes
           </span>
           <input
             type="datetime-local"
@@ -108,6 +108,11 @@ export function FireSaleForm({
             onChange={(e) => setDeadline(e.target.value)}
             className={field}
           />
+          <span className="text-xs text-muted">
+            {mode === "public"
+              ? "The auction goes live as soon as you start it — bids run until this time."
+              : "Sealed bids are accepted until this time."}
+          </span>
         </label>
       </div>
 
