@@ -1,25 +1,6 @@
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
-
-interface YearRecord {
-  w: number | null;
-  l: number | null;
-  playoffs: number | null;
-}
-
-interface ManagerStanding {
-  name: string;
-  w: number;
-  l: number;
-  winPct: number;
-  rsTitles: number | null;
-  playoffApps: number | null;
-  semis: number | null;
-  finals: number | null;
-  champs: number | null;
-  sacko: number | null;
-  byYear: Record<number, YearRecord>;
-}
+import { StandingsTable, type ManagerStanding } from "@/components/StandingsTable";
 
 const YEARS = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018];
 
@@ -42,10 +23,6 @@ const STANDINGS: ManagerStanding[] = [
 
 const BY_WIN_PCT = [...STANDINGS].sort((a, b) => b.winPct - a.winPct);
 
-function num(v: number | null) {
-  return v === null ? "—" : String(v);
-}
-
 export default function StandingsPage() {
   return (
     <div>
@@ -54,65 +31,10 @@ export default function StandingsPage() {
         subtitle="Career records through the 2025 season. Static for now — live sync from Sleeper lands in Phase 3."
       />
 
-      <div className="overflow-x-auto rounded-md border border-line bg-surface">
-        <table className="w-full min-w-[760px] text-sm">
-          <thead>
-            <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">
-              <th className="w-12 py-3 pl-4 pr-2 text-left font-medium">#</th>
-              <th className="py-3 pr-4 text-left font-medium">Team</th>
-              <th className="py-3 pr-4 text-right font-medium">W</th>
-              <th className="py-3 pr-4 text-right font-medium">L</th>
-              <th className="py-3 pr-4 text-right font-medium">Pct</th>
-              <th className="py-3 pr-4 text-right font-medium" title="Regular-season titles">Titles</th>
-              <th className="py-3 pr-4 text-right font-medium" title="Playoff appearances">Playoffs</th>
-              <th className="py-3 pr-4 text-right font-medium" title="Finals appearances">Finals</th>
-              <th className="py-3 pr-4 text-right font-medium" title="Championships">Rings</th>
-              <th className="py-3 pr-4 text-right font-medium" title="Last-place finishes">Sacko</th>
-            </tr>
-          </thead>
-          <tbody>
-            {BY_WIN_PCT.map((m, i) => {
-              const isTop = i === 0;
-              const rings = m.champs ?? 0;
-              return (
-                <tr
-                  key={m.name}
-                  className="border-b border-line transition-colors last:border-0 hover:bg-surface-2"
-                >
-                  <td className="py-3 pl-4 pr-2">
-                    <span
-                      className={`tabular text-sm ${
-                        isTop ? "text-gold" : "text-muted"
-                      }`}
-                    >
-                      {i + 1}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <Nameplate alias={m.name} />
-                  </td>
-                  <td className="tabular py-3 pr-4 text-right text-ink">{m.w}</td>
-                  <td className="tabular py-3 pr-4 text-right text-muted">{m.l}</td>
-                  <td className="tabular py-3 pr-4 text-right text-ink">
-                    {(m.winPct * 100).toFixed(1)}
-                  </td>
-                  <td className="tabular py-3 pr-4 text-right text-muted">{num(m.rsTitles)}</td>
-                  <td className="tabular py-3 pr-4 text-right text-muted">{num(m.playoffApps)}</td>
-                  <td className="tabular py-3 pr-4 text-right text-muted">{num(m.finals)}</td>
-                  <td className="tabular py-3 pr-4 text-right">
-                    {rings > 0 ? (
-                      <span className="text-gold">★ {rings}</span>
-                    ) : (
-                      <span className="text-muted">{num(m.champs)}</span>
-                    )}
-                  </td>
-                  <td className="tabular py-3 pr-4 text-right text-muted">{num(m.sacko)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <p className="-mt-2 mb-4 text-sm text-muted">
+        Sorted by win percentage. Tap any column heading to re-sort.
+      </p>
+      <StandingsTable rows={STANDINGS} />
 
       <h2 className="nameplate-type mt-12 mb-4 text-xl text-ink">
         Season by season
