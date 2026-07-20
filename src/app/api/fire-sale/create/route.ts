@@ -62,18 +62,25 @@ export async function POST(request: Request) {
   const playerName = names.get(playerId) ?? playerId;
 
   const admin = createAdminClient();
-  const { error } = await admin.from("fire_sales").insert({
-    season_id: season.id,
-    seller_id: manager.id,
-    player_id: playerId,
-    player_name: playerName,
-    mode: saleMode,
-    min_bid: min,
-    deadline: when.toISOString(),
-    status: "active",
-  });
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  const { data: created, error } = await admin
+    .from("fire_sales")
+    .insert({
+      season_id: season.id,
+      seller_id: manager.id,
+      player_id: playerId,
+      player_name: playerName,
+      mode: saleMode,
+      min_bid: min,
+      deadline: when.toISOString(),
+      status: "active",
+    })
+    .select("id")
+    .single();
+  if (error || !created) {
+    return NextResponse.json(
+      { error: error?.message ?? "Could not create the sale." },
+      { status: 500 }
+    );
   }
 
   await notifyAll(admin, {
@@ -83,5 +90,5 @@ export async function POST(request: Request) {
     excludeManagerId: manager.id,
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, id: created.id, mode: saleMode });
 }

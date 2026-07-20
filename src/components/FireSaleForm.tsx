@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CopyLinkButton } from "./CopyLinkButton";
 
 export function FireSaleForm({
   rosterPlayers,
@@ -15,6 +16,9 @@ export function FireSaleForm({
   const [deadline, setDeadline] = useState("");
   const [status, setStatus] = useState<"idle" | "saving">("idle");
   const [error, setError] = useState("");
+  // The just-created sale's share path, shown so the seller can copy it into
+  // the league chat. Cleared when they start filling out a new sale.
+  const [sharePath, setSharePath] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,12 +43,30 @@ export function FireSaleForm({
       setStatus("idle");
       return;
     }
+    const b = (await res.json().catch(() => ({}))) as {
+      id?: string;
+      mode?: string;
+    };
+    // Public auctions have their own live room; private sales deep-link to
+    // their card on the Fire Sale list.
+    setSharePath(
+      b.id
+        ? b.mode === "public"
+          ? `/fire-sale/${b.id}`
+          : `/fire-sale#sale-${b.id}`
+        : "/fire-sale"
+    );
     setPlayerId("");
     setMinBid("1");
     setDeadline("");
     setStatus("idle");
     router.refresh();
   }
+
+  const shareUrl =
+    sharePath && typeof window !== "undefined"
+      ? `${window.location.origin}${sharePath}`
+      : sharePath ?? "";
 
   const field =
     "rounded-md border border-line bg-canvas px-3 py-2 text-sm text-ink focus:border-brand focus:outline-none [color-scheme:dark]";
@@ -73,7 +95,10 @@ export function FireSaleForm({
           <span className="text-xs uppercase tracking-wide text-muted">Player</span>
           <select
             value={playerId}
-            onChange={(e) => setPlayerId(e.target.value)}
+            onChange={(e) => {
+              setPlayerId(e.target.value);
+              setSharePath(null);
+            }}
             className={field}
           >
             <option value="">Select one of your players…</option>
@@ -131,6 +156,33 @@ export function FireSaleForm({
         </span>
       </div>
       {error && <p className="mt-2 text-sm text-rejected">{error}</p>}
+
+      {sharePath && (
+        <div className="mt-4 rounded-md border border-brand/40 bg-brand/5 p-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium text-ink">
+              Fire Sale started — share it with the league
+            </p>
+            <button
+              type="button"
+              onClick={() => setSharePath(null)}
+              aria-label="Dismiss"
+              className="text-sm text-muted hover:text-ink"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <input
+              readOnly
+              value={shareUrl}
+              onFocus={(e) => e.currentTarget.select()}
+              className={`flex-1 ${field} min-w-0`}
+            />
+            <CopyLinkButton path={sharePath} />
+          </div>
+        </div>
+      )}
     </form>
   );
 }

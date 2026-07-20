@@ -5,6 +5,7 @@ import { getCurrentManager } from "@/lib/managers";
 import { getManagerAuctionBudget } from "@/lib/budget";
 import { getLeagueRosters } from "@/lib/sleeper/client";
 import { getPlayerNames } from "@/lib/players";
+import { getKeeperPrices } from "@/lib/keeper-price";
 import { maxBidFor } from "@/lib/fire-sale";
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
@@ -44,13 +45,27 @@ function when(iso: string) {
   });
 }
 
+/** The player's keeper cost, shown so bidders know what they'd owe to keep. */
+function KeeperChip({ price }: { price: number | undefined }) {
+  return (
+    <span
+      title="What this player would cost to keep next year"
+      className={`rounded px-1.5 py-0.5 text-xs ${
+        price != null ? "bg-canvas text-gold" : "bg-canvas text-muted"
+      }`}
+    >
+      {price != null ? `Keeper $${price}` : "Keeper TBD"}
+    </span>
+  );
+}
+
 export default async function FireSalePage() {
   const supabase = await createClient();
   const manager = await getCurrentManager(supabase);
 
   const { data: season } = await supabase
     .from("seasons")
-    .select("id, starting_budget")
+    .select("id, year, starting_budget")
     .eq("status", "active")
     .single();
   if (!season) {
@@ -74,6 +89,14 @@ export default async function FireSalePage() {
   ]);
   const nameById = new Map((managers ?? []).map((m) => [m.id, m.display_name]));
   const sales = (salesData ?? []) as Sale[];
+
+  // The keeper cost of each player on the block, so everyone can see what the
+  // player would cost to keep next year while they decide how hard to bid.
+  const keeperPrices = await getKeeperPrices(
+    supabase,
+    season.year,
+    sales.map((s) => s.player_id)
+  );
 
   // Bids are sealed — read them only via the admin client, and only surface
   // them per the visibility rules below.
@@ -160,7 +183,8 @@ export default async function FireSalePage() {
           return (
             <div
               key={sale.id}
-              className="rounded-md border border-line bg-surface p-4"
+              id={`sale-${sale.id}`}
+              className="scroll-mt-24 rounded-md border border-line bg-surface p-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -170,8 +194,11 @@ export default async function FireSalePage() {
                     size={36}
                   />
                   <div>
-                    <div className="text-sm font-medium text-ink">
-                      {sale.player_name}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-ink">
+                        {sale.player_name}
+                      </span>
+                      <KeeperChip price={keeperPrices.get(sale.player_id)} />
                     </div>
                     <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
                       from
