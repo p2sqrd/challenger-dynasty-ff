@@ -28,13 +28,32 @@ export default async function BudgetPage({
 
   const team = resolveTeam(manager.display_name);
 
-  const { data: entries } = await supabase
+  // Keeper costs stay off the public ledger until the deadline locks them in,
+  // matching the Budget table. Each manager tracks their own live keeper
+  // number on the Keepers page until then.
+  const { data: activeSeason } = await supabase
+    .from("seasons")
+    .select("keeper_deadline")
+    .eq("status", "active")
+    .single();
+  // Server component: "now" per request is intended.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
+  const keepersLocked =
+    activeSeason?.keeper_deadline != null &&
+    new Date(activeSeason.keeper_deadline).getTime() <= now;
+
+  const { data: allEntries } = await supabase
     .from("budget_ledger")
     .select("id, amount, reason, created_at")
     .eq("manager_id", managerId)
     .order("created_at", { ascending: false });
 
-  const balance = (entries ?? []).reduce((sum, e) => sum + e.amount, 0);
+  const entries = keepersLocked
+    ? allEntries ?? []
+    : (allEntries ?? []).filter((e) => e.reason !== "keeper");
+
+  const balance = entries.reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <div>

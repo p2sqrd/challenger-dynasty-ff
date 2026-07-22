@@ -8,6 +8,7 @@ interface Row {
   name: string;
   base: number;
   trades: number[];
+  keeperSpend: number;
   current: number;
   hasEntries: boolean;
 }
@@ -17,7 +18,7 @@ export default async function BudgetPage() {
 
   const { data: activeSeason } = await supabase
     .from("seasons")
-    .select("id, year, starting_budget")
+    .select("id, year, starting_budget, keeper_deadline")
     .eq("status", "active")
     .single();
 
@@ -29,6 +30,18 @@ export default async function BudgetPage() {
       </>
     );
   }
+
+  // Keepers are still editable until the deadline, so their cost stays off the
+  // public table until then — each manager sees their own live keeper number
+  // on the Keepers page. Once the deadline locks keepers in, it's reflected
+  // here as everyone's final auction budget. (Before then, trades are
+  // zero-sum, so the league total holds at the full starting pool.)
+  // Server component: "now" per request is intended.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
+  const keepersLocked =
+    activeSeason.keeper_deadline != null &&
+    new Date(activeSeason.keeper_deadline).getTime() <= now;
 
   const [{ data: managers }, { data: ledger }] = await Promise.all([
     supabase.from("managers").select("id, display_name"),
@@ -50,13 +63,21 @@ export default async function BudgetPage() {
       const trades = entries
         .filter((e) => e.reason === "trade")
         .map((e) => e.amount);
-      const current = entries.reduce((s, e) => s + e.amount, 0);
+      const keeperSpend = entries
+        .filter((e) => e.reason === "keeper")
+        .reduce((s, e) => s + e.amount, 0);
+      // Non-keeper running budget (base + trades + anything else). Keeper cost
+      // only folds in once keepers are locked.
+      const nonKeeper = entries
+        .filter((e) => e.reason !== "keeper")
+        .reduce((s, e) => s + e.amount, 0);
       return {
         managerId: m.id,
         name: m.display_name,
         base,
         trades,
-        current,
+        keeperSpend,
+        current: keepersLocked ? nonKeeper + keeperSpend : nonKeeper,
         hasEntries: entries.length > 0,
       };
     })
@@ -102,7 +123,8 @@ export default async function BudgetPage() {
                     ${r.base}
                   </td>
                   <td className="py-3 pr-4">
-                    {r.trades.length === 0 ? (
+                    {r.trades.length === 0 &&
+                    !(keepersLocked && r.keeperSpend !== 0) ? (
                       <span className="text-muted">—</span>
                     ) : (
                       <span className="flex flex-wrap items-center gap-1">
@@ -118,9 +140,16 @@ export default async function BudgetPage() {
                             {a >= 0 ? "+" : "−"}${Math.abs(a)}
                           </span>
                         ))}
-                        <span className="tabular ml-1 text-xs text-muted">
-                          net {net >= 0 ? "+" : "−"}${Math.abs(net)}
-                        </span>
+                        {r.trades.length > 0 && (
+                          <span className="tabular ml-1 text-xs text-muted">
+                            net {net >= 0 ? "+" : "−"}${Math.abs(net)}
+                          </span>
+                        )}
+                        {keepersLocked && r.keeperSpend !== 0 && (
+                          <span className="tabular rounded bg-gold/10 px-1.5 py-0.5 text-xs text-gold">
+                            keepers −${Math.abs(r.keeperSpend)}
+                          </span>
+                        )}
                       </span>
                     )}
                   </td>
@@ -147,8 +176,20 @@ export default async function BudgetPage() {
       </div>
 
       <p className="mt-4 text-xs text-muted">
-        Trades are zero-sum, so the league total always holds at $
-        {leagueTotal}. Green chips are money received; red chips are money sent.
+        {keepersLocked ? (
+          <>
+            Keepers are locked in, so this is each manager&apos;s remaining
+            auction budget (base + trades − keepers). Green chips are money
+            received; red chips are money sent.
+          </>
+        ) : (
+          <>
+            Trades are zero-sum, so the league total holds at ${leagueTotal}.
+            Keeper costs land here once the keeper deadline locks keepers in —
+            until then, each manager tracks their own live keeper budget on the
+            Keepers page.
+          </>
+        )}
       </p>
     </div>
   );
