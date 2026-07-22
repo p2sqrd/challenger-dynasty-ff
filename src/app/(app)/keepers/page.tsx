@@ -8,6 +8,7 @@ import { ROSTER_SIZE } from "@/lib/rules/budget-validation";
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
 import { CountdownTimers } from "@/components/CountdownTimers";
+import { TopBanners } from "@/components/TopBanners";
 import { KeeperSelectionForm } from "@/components/KeeperSelectionForm";
 import { AllKeepers, type LeagueRoster } from "@/components/AllKeepers";
 import type { EligiblePlayer } from "@/components/KeeperSelectionForm";
@@ -74,6 +75,8 @@ export default async function KeepersPage() {
 
   return (
     <div>
+      <TopBanners />
+
       <PageHeader
         title="Keepers"
         subtitle="Lock in the players you're carrying into the 2026 auction."

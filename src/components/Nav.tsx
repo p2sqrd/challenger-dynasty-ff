@@ -16,19 +16,20 @@ export async function Nav() {
 
   const links = [
     { href: "/keepers", label: "Keepers", match: "prefix" as const },
+    { href: "/rule-proposals", label: "2026 Rule Proposals", match: "prefix" as const },
     { href: "/trades", label: "Trades", match: "prefix" as const },
     { href: "/budget", label: "Budget", match: "prefix" as const },
     { href: "/fire-sale", label: "Fire Sale", match: "prefix" as const },
-    { href: "/trash-talk", label: "Trash Talk", match: "prefix" as const },
     {
       href: "/archive",
-      label: "Archive",
+      label: "More",
       children: [
+        { href: "/trash-talk", label: "Trash Talk", match: "prefix" as const },
         { href: "/standings", label: "Historical Standings", match: "prefix" as const },
         { href: "/schedule-luck", label: "Schedule Luck", match: "prefix" as const },
         { href: "/players", label: "Players", match: "prefix" as const },
         { href: "/rules", label: "Rules", match: "prefix" as const },
-        { href: "/proposals", label: "Rule Proposals", match: "prefix" as const },
+        { href: "/proposals", label: "Previous Rule Proposals", match: "prefix" as const },
         { href: "/punishment", label: "Punishment Tracker", match: "prefix" as const },
       ],
     },
