@@ -24,7 +24,7 @@ export default async function BudgetPage() {
   if (!activeSeason) {
     return (
       <>
-        <PageHeader title="Budget" />
+        <PageHeader title="Auction Budget" />
         <p className="text-sm text-muted">No active season configured yet.</p>
       </>
     );
@@ -68,7 +68,7 @@ export default async function BudgetPage() {
   return (
     <div>
       <PageHeader
-        title="Budget"
+        title="Auction Budget"
         subtitle={`Every manager's ${activeSeason.year} auction budget — the $${activeSeason.starting_budget} base plus every cash trade that's moved it since. Tap a row for the full ledger.`}
       />
 

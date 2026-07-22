@@ -18,7 +18,7 @@ export async function Nav() {
     { href: "/keepers", label: "Keepers", match: "prefix" as const },
     { href: "/rule-proposals", label: "2026 Rule Proposals", match: "prefix" as const },
     { href: "/trades", label: "Trades", match: "prefix" as const },
-    { href: "/budget", label: "Budget", match: "prefix" as const },
+    { href: "/budget", label: "Auction Budget", match: "prefix" as const },
     { href: "/fire-sale", label: "Fire Sale", match: "prefix" as const },
     {
       href: "/archive",
