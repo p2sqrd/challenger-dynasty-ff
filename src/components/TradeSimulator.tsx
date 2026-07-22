@@ -23,6 +23,15 @@ const listBox =
 const rowBase =
   "flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-surface-2";
 
+/** The keeper cost of a player, or a muted note when we don't have one. */
+function KeeperTag({ price }: { price: number | null }) {
+  return (
+    <span className="tabular shrink-0 text-xs text-muted">
+      {price != null ? `$${price}` : "no keeper price"}
+    </span>
+  );
+}
+
 /**
  * One side's keeper try-out: pick keepers off a (post-trade) roster and see
  * the spend, dollars left, and roster-fill math. Purely presentational.
@@ -74,9 +83,7 @@ function KeeperPanel({
                 />
                 <span className="text-ink">{p.name}</span>
               </span>
-              <span className="tabular text-xs text-muted">
-                {keepable ? `$${p.keeperPrice}` : "no keeper price"}
-              </span>
+              <KeeperTag price={p.keeperPrice} />
             </label>
           );
         })}
@@ -254,14 +261,17 @@ export function TradeSimulator({
                   </div>
                   <div className={listBox}>
                     {me.roster.map((p) => (
-                      <label key={p.playerId} className={rowBase}>
-                        <input
-                          type="checkbox"
-                          checked={send.has(p.playerId)}
-                          onChange={() => toggleSend(p.playerId)}
-                          className="h-4 w-4 accent-[var(--color-rejected)]"
-                        />
-                        <span className="text-ink">{p.name}</span>
+                      <label key={p.playerId} className={`${rowBase} justify-between`}>
+                        <span className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={send.has(p.playerId)}
+                            onChange={() => toggleSend(p.playerId)}
+                            className="h-4 w-4 accent-[var(--color-rejected)]"
+                          />
+                          <span className="text-ink">{p.name}</span>
+                        </span>
+                        <KeeperTag price={p.keeperPrice} />
                       </label>
                     ))}
                   </div>
@@ -272,14 +282,17 @@ export function TradeSimulator({
                   </div>
                   <div className={listBox}>
                     {partner.roster.map((p) => (
-                      <label key={p.playerId} className={rowBase}>
-                        <input
-                          type="checkbox"
-                          checked={receive.has(p.playerId)}
-                          onChange={() => toggleReceive(p.playerId)}
-                          className="h-4 w-4 accent-[var(--color-approved)]"
-                        />
-                        <span className="text-ink">{p.name}</span>
+                      <label key={p.playerId} className={`${rowBase} justify-between`}>
+                        <span className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={receive.has(p.playerId)}
+                            onChange={() => toggleReceive(p.playerId)}
+                            className="h-4 w-4 accent-[var(--color-approved)]"
+                          />
+                          <span className="text-ink">{p.name}</span>
+                        </span>
+                        <KeeperTag price={p.keeperPrice} />
                       </label>
                     ))}
                   </div>
