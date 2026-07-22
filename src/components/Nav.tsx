@@ -25,6 +25,7 @@ export async function Nav() {
       label: "Archive",
       children: [
         { href: "/standings", label: "Historical Standings", match: "prefix" as const },
+        { href: "/schedule-luck", label: "Schedule Luck", match: "prefix" as const },
         { href: "/players", label: "Players", match: "prefix" as const },
         { href: "/rules", label: "Rules", match: "prefix" as const },
         { href: "/proposals", label: "Rule Proposals", match: "prefix" as const },

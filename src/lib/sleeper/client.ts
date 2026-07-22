@@ -2,6 +2,7 @@ import type {
   SleeperDraft,
   SleeperDraftPick,
   SleeperLeague,
+  SleeperMatchup,
   SleeperPlayer,
   SleeperRoster,
   SleeperTransaction,
@@ -43,6 +44,25 @@ export function getTransactions(
   week: number
 ): Promise<SleeperTransaction[]> {
   return get(`/league/${leagueId}/transactions/${week}`);
+}
+
+/**
+ * A week's head-to-head results: each roster's points, plus a `matchup_id`
+ * that pairs the two rosters who faced each other. Past-season results never
+ * change, so we cache for a day to keep the schedule-luck grid off Sleeper's
+ * API on every page load.
+ */
+export async function getMatchups(
+  leagueId: string,
+  week: number
+): Promise<SleeperMatchup[]> {
+  const res = await fetch(`${BASE_URL}/league/${leagueId}/matchups/${week}`, {
+    next: { revalidate: 60 * 60 * 24 },
+  });
+  if (!res.ok) {
+    throw new Error(`Sleeper API matchups/${week} failed: ${res.status}`);
+  }
+  return res.json() as Promise<SleeperMatchup[]>;
 }
 
 /**

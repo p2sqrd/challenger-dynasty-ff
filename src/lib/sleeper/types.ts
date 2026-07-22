@@ -67,6 +67,13 @@ export interface SleeperDraftPick {
   };
 }
 
+export interface SleeperMatchup {
+  roster_id: number;
+  /** Rosters sharing a matchup_id played each other that week; null = no game. */
+  matchup_id: number | null;
+  points: number;
+}
+
 export interface SleeperTransaction {
   transaction_id: string;
   type: string;

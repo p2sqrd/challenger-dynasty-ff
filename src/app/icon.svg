@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#1B2029"/>
+  <!-- handles -->
+  <path d="M18 16 C7 16 7 30 19 31" fill="none" stroke="#E7B24B" stroke-width="5" stroke-linecap="round"/>
+  <path d="M46 16 C57 16 57 30 45 31" fill="none" stroke="#E7B24B" stroke-width="5" stroke-linecap="round"/>
+  <!-- cup -->
+  <path d="M16 12 H48 V21 C48 31 41 38 32 38 C23 38 16 31 16 21 Z" fill="#E7B24B"/>
+  <!-- stem -->
+  <rect x="28.5" y="38" width="7" height="7" fill="#E7B24B"/>
+  <!-- base -->
+  <rect x="21" y="45" width="22" height="5" rx="2" fill="#E7B24B"/>
+  <rect x="24" y="50" width="16" height="5" rx="2" fill="#E7B24B"/>
+</svg>
