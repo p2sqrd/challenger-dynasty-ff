@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildComments,
   buildProposals,
   computeStatus,
   majorityThreshold,
@@ -98,5 +99,41 @@ describe("buildProposals", () => {
     expect(p.yes).toHaveLength(7);
     expect(p.status).toBe("passed");
     expect(p.myVote).toBeNull();
+  });
+});
+
+describe("buildComments", () => {
+  const nameById = new Map([
+    ["m1", "ppradhan"],
+    ["m2", "omarels"],
+    ["m3", "sprtzfan17"],
+  ]);
+
+  it("groups comments per proposal and tallies reactions per emoji", () => {
+    const byProposal = buildComments({
+      comments: [
+        { id: "c1", proposal_id: "p1", manager_id: "m1", body: "yes please", created_at: "2026-01-01T00:00:00Z" },
+        { id: "c2", proposal_id: "p1", manager_id: "m2", body: "no way", created_at: "2026-01-01T00:01:00Z" },
+        { id: "c3", proposal_id: "p2", manager_id: "m3", body: "other", created_at: "2026-01-01T00:02:00Z" },
+      ],
+      reactions: [
+        { comment_id: "c1", manager_id: "m2", emoji: "🔥" },
+        { comment_id: "c1", manager_id: "m3", emoji: "🔥" },
+        { comment_id: "c1", manager_id: "m1", emoji: "👍" },
+      ],
+      nameById,
+      viewerId: "m3",
+    });
+
+    const p1 = byProposal.get("p1")!;
+    expect(p1).toHaveLength(2);
+    expect(byProposal.get("p2")).toHaveLength(1);
+
+    const c1 = p1[0];
+    // 🔥 has 2 (sorted before 👍 with 1), and m3 (viewer) is in the 🔥 set.
+    expect(c1.reactions[0]).toMatchObject({ emoji: "🔥", count: 2, mine: true });
+    expect(c1.reactions[0].names.sort()).toEqual(["Hirsch", "Omar"]);
+    expect(c1.reactions[1]).toMatchObject({ emoji: "👍", count: 1, mine: false });
+    expect(c1.authorName).toBe("Pranav");
   });
 });

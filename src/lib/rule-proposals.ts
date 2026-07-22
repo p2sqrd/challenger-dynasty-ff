@@ -1,5 +1,8 @@
 import { resolveTeam } from "@/lib/teams";
 
+/** The fixed palette managers can react to comments with. */
+export const REACTION_EMOJIS = ["👍", "❤️", "😂", "🔥", "🎯", "👎"] as const;
+
 export type ProposalStatus = "open" | "passed" | "failed";
 
 export interface Voter {
@@ -124,4 +127,96 @@ export function buildProposals({
       overridden,
     };
   });
+}
+
+export interface ReactionSummary {
+  emoji: string;
+  count: number;
+  /** Whether the viewer has this reaction on the comment. */
+  mine: boolean;
+  /** Display names of everyone who reacted with this emoji. */
+  names: string[];
+}
+
+export interface CommentView {
+  id: string;
+  proposalId: string;
+  authorId: string;
+  authorName: string;
+  authorColor: string;
+  body: string;
+  createdAt: string;
+  reactions: ReactionSummary[];
+}
+
+export interface RawComment {
+  id: string;
+  proposal_id: string;
+  manager_id: string;
+  body: string;
+  created_at: string;
+}
+
+export interface RawReaction {
+  comment_id: string;
+  manager_id: string;
+  emoji: string;
+}
+
+/**
+ * Group comments by proposal (oldest-first, as stored) and roll each
+ * comment's reactions into per-emoji summaries.
+ */
+export function buildComments({
+  comments,
+  reactions,
+  nameById,
+  viewerId,
+}: {
+  comments: RawComment[];
+  reactions: RawReaction[];
+  nameById: Map<string, string>;
+  viewerId: string | null;
+}): Map<string, CommentView[]> {
+  const reactionsByComment = new Map<string, RawReaction[]>();
+  for (const r of reactions) {
+    const list = reactionsByComment.get(r.comment_id) ?? [];
+    list.push(r);
+    reactionsByComment.set(r.comment_id, list);
+  }
+
+  const byProposal = new Map<string, CommentView[]>();
+  for (const c of comments) {
+    const rows = reactionsByComment.get(c.id) ?? [];
+    const byEmoji = new Map<string, RawReaction[]>();
+    for (const r of rows) {
+      const list = byEmoji.get(r.emoji) ?? [];
+      list.push(r);
+      byEmoji.set(r.emoji, list);
+    }
+    const summaries: ReactionSummary[] = [...byEmoji.entries()]
+      .map(([emoji, list]) => ({
+        emoji,
+        count: list.length,
+        mine: viewerId ? list.some((x) => x.manager_id === viewerId) : false,
+        names: list.map((x) => resolveTeam(nameById.get(x.manager_id)).name),
+      }))
+      .sort((a, b) => b.count - a.count || a.emoji.localeCompare(b.emoji));
+
+    const team = resolveTeam(nameById.get(c.manager_id));
+    const view: CommentView = {
+      id: c.id,
+      proposalId: c.proposal_id,
+      authorId: c.manager_id,
+      authorName: team.name,
+      authorColor: team.color,
+      body: c.body,
+      createdAt: c.created_at,
+      reactions: summaries,
+    };
+    const list = byProposal.get(c.proposal_id) ?? [];
+    list.push(view);
+    byProposal.set(c.proposal_id, list);
+  }
+  return byProposal;
 }
