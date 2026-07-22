@@ -98,9 +98,13 @@ export function TradeCashForm({
           disabled={submitting}
           className="rounded-md bg-brand px-3 py-1.5 font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
         >
-          {submitting ? "Submitting…" : "Submit"}
+          {submitting ? "Sending…" : "Send to commissioner"}
         </button>
       </div>
+      <p className="mt-2 text-xs text-muted">
+        Only one of you needs to do this — the other side is set automatically,
+        then it goes to the commissioner to approve.
+      </p>
       {error && <p className="mt-2 text-rejected">{error}</p>}
     </div>
   );

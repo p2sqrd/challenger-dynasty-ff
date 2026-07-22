@@ -71,13 +71,15 @@ export default async function TradesPage() {
   const playerName = (playerId: string) => nameMap.get(playerId) ?? playerId;
 
   const allTrades = trades ?? [];
+  // A pending_cash trade needs the cash entered by *either* party — the first
+  // one to submit finalizes it and sends it to the commissioner — so show the
+  // form to anyone who's a party to it.
   const needsMyCash = manager
     ? allTrades.filter((t) => {
         if (t.status !== "pending_cash") return false;
-        const mySide = (sidesByTradeId.get(t.id) ?? []).find(
+        return (sidesByTradeId.get(t.id) ?? []).some(
           (s) => s.manager_id === manager.id
         );
-        return mySide != null && mySide.cash_amount === null;
       })
     : [];
 

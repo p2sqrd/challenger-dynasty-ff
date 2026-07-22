@@ -24,7 +24,7 @@ export function TradeApprovalQueue({ trades }: { trades: Trade[] }) {
   if (trades.length === 0) {
     return (
       <p className="mt-3 text-sm text-muted">
-        Nothing pending — trades land here once both sides enter their cash.
+        Nothing pending — trades land here once the cash is entered.
       </p>
     );
   }
