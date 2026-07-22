@@ -110,7 +110,7 @@ export function LiveAuction({ saleId }: { saleId: string }) {
             Current high bid
           </div>
           <div className="tabular mt-1 text-4xl font-semibold text-ink">
-            {state.high ? `$${state.high.amount}` : `$${state.minBid} min`}
+            {state.high ? `$${state.high.amount}` : `$${state.minBid} minimum`}
           </div>
           <div className="mt-1 text-sm text-muted">
             {state.high ? `by ${state.high.bidderName}` : "no bids yet"}
