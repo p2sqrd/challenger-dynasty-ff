@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
 import { getPlayerNames } from "@/lib/players";
+import { getManagerAuctionBudget } from "@/lib/budget";
+import { getKeeperPrices } from "@/lib/keeper-price";
+import { getLeagueRosters } from "@/lib/sleeper/client";
 import { detectTradeback, type PlayerTradeEvent } from "@/lib/rules/tradeback";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -9,6 +12,7 @@ import { TradeCashForm } from "@/components/TradeCashForm";
 import { TradeApprovalQueue } from "@/components/TradeApprovalQueue";
 import { ManualTradeForm } from "@/components/ManualTradeForm";
 import { SyncTradesButton } from "@/components/SyncTradesButton";
+import { TradeSimulator, type SimRoster } from "@/components/TradeSimulator";
 
 interface TradeSideRow {
   trade_id: string;
@@ -39,7 +43,7 @@ export default async function TradesPage() {
 
   const { data: managers } = await supabase
     .from("managers")
-    .select("id, display_name");
+    .select("id, display_name, sleeper_roster_id");
   const nameById = new Map((managers ?? []).map((m) => [m.id, m.display_name]));
 
   const { data: trades } = await supabase
@@ -87,6 +91,62 @@ export default async function TradesPage() {
   const history = allTrades.filter(
     (t) => t.status === "approved" || t.status === "rejected"
   );
+
+  // Trade Simulator data: everyone's current Sleeper roster, keeper prices for
+  // next season, and this manager's auction budget. It's a private client-side
+  // sandbox, so we only build it for a logged-in manager and let it fail soft
+  // — a Sleeper hiccup just hides the tool rather than breaking the page.
+  let simMe: SimRoster | null = null;
+  let simOthers: SimRoster[] = [];
+  let simBudget = 0;
+  if (manager) {
+    try {
+      const rosters = await getLeagueRosters(process.env.SLEEPER_LEAGUE_ID!);
+      const playersByRosterId = new Map(
+        rosters.map((r) => [r.roster_id, r.players ?? []])
+      );
+      const withRoster = (managers ?? [])
+        .map((m) => ({
+          manager: m,
+          playerIds: playersByRosterId.get(m.sleeper_roster_id) ?? [],
+        }))
+        .filter((x) => x.playerIds.length > 0);
+
+      const allPlayerIds = withRoster.flatMap((x) => x.playerIds);
+      const [simNames, keeperPrices, budget] = await Promise.all([
+        getPlayerNames(supabase, allPlayerIds),
+        getKeeperPrices(supabase, activeSeason.year, allPlayerIds),
+        getManagerAuctionBudget(
+          supabase,
+          activeSeason.id,
+          manager.id,
+          activeSeason.starting_budget
+        ),
+      ]);
+      simBudget = budget;
+
+      const toSimRoster = (x: (typeof withRoster)[number]): SimRoster => ({
+        managerId: x.manager.id,
+        name: x.manager.display_name,
+        roster: x.playerIds
+          .map((playerId) => ({
+            playerId,
+            name: simNames.get(playerId) ?? playerId,
+            keeperPrice: keeperPrices.get(playerId) ?? null,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      });
+
+      simMe = withRoster.find((x) => x.manager.id === manager.id)
+        ? toSimRoster(withRoster.find((x) => x.manager.id === manager.id)!)
+        : null;
+      simOthers = withRoster
+        .filter((x) => x.manager.id !== manager.id)
+        .map(toSimRoster);
+    } catch {
+      simMe = null;
+    }
+  }
 
   // Everyone can see mid-flight trades (awaiting cash or approval) so a synced
   // trade is visible league-wide right away — not just to the two managers in
@@ -253,6 +313,14 @@ export default async function TradesPage() {
             }))}
           />
         </section>
+      )}
+
+      {simMe && (
+        <TradeSimulator
+          me={simMe}
+          others={simOthers}
+          auctionBudget={simBudget}
+        />
       )}
 
       <section className="mt-12">
