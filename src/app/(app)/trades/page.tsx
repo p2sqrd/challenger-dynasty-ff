@@ -4,6 +4,7 @@ import { getPlayerNames } from "@/lib/players";
 import { getManagerAuctionBudget } from "@/lib/budget";
 import { getKeeperPrices } from "@/lib/keeper-price";
 import { getLeagueRosters } from "@/lib/sleeper/client";
+import { resolveTeam } from "@/lib/teams";
 import { detectTradeback, type PlayerTradeEvent } from "@/lib/rules/tradeback";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -127,7 +128,7 @@ export default async function TradesPage() {
 
       const toSimRoster = (x: (typeof withRoster)[number]): SimRoster => ({
         managerId: x.manager.id,
-        name: x.manager.display_name,
+        name: resolveTeam(x.manager.display_name).name,
         roster: x.playerIds
           .map((playerId) => ({
             playerId,
