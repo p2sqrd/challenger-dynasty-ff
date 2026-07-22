@@ -209,6 +209,44 @@ export interface Database {
         >;
         Relationships: [];
       };
+      rule_proposal_comments: {
+        Row: {
+          id: string;
+          proposal_id: string;
+          manager_id: string;
+          body: string;
+          created_at: string;
+        };
+        Insert: Partial<
+          Database["public"]["Tables"]["rule_proposal_comments"]["Row"]
+        > & {
+          proposal_id: string;
+          manager_id: string;
+          body: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["rule_proposal_comments"]["Row"]
+        >;
+        Relationships: [];
+      };
+      rule_proposal_comment_reactions: {
+        Row: {
+          comment_id: string;
+          manager_id: string;
+          emoji: string;
+          created_at: string;
+        };
+        Insert: {
+          comment_id: string;
+          manager_id: string;
+          emoji: string;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["rule_proposal_comment_reactions"]["Row"]
+        >;
+        Relationships: [];
+      };
       draft_records: {
         Row: {
           id: string;

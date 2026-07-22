@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
 import {
   buildProposals,
+  buildComments,
   majorityThreshold,
   type ProposalStatus,
   type Voter,
@@ -11,6 +12,9 @@ import { RuleProposalForm } from "@/components/RuleProposalForm";
 import { RuleProposalVote } from "@/components/RuleProposalVote";
 import { RuleProposalDelete } from "@/components/RuleProposalDelete";
 import { RuleProposalOverride } from "@/components/RuleProposalOverride";
+import { CommentForm } from "@/components/CommentForm";
+import { CommentReactions } from "@/components/CommentReactions";
+import { CommentDelete } from "@/components/CommentDelete";
 
 function Notice({ children }: { children: React.ReactNode }) {
   return (
@@ -30,6 +34,15 @@ const STATUS_LABEL: Record<ProposalStatus, string> = {
   passed: "Passed",
   failed: "Failed",
 };
+
+function commentTime(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 function VoterList({ voters }: { voters: Voter[] }) {
   if (voters.length === 0) return <span className="text-muted">—</span>;
@@ -112,6 +125,28 @@ export default async function RuleProposalsPage() {
     viewerId: manager?.id ?? null,
     threshold,
     locked,
+  });
+
+  // Discussion: comments (oldest-first) + their emoji reactions.
+  const { data: comments } = proposalIds.length
+    ? await supabase
+        .from("rule_proposal_comments")
+        .select("id, proposal_id, manager_id, body, created_at")
+        .in("proposal_id", proposalIds)
+        .order("created_at", { ascending: true })
+    : { data: [] };
+  const commentIds = (comments ?? []).map((c) => c.id);
+  const { data: reactions } = commentIds.length
+    ? await supabase
+        .from("rule_proposal_comment_reactions")
+        .select("comment_id, manager_id, emoji")
+        .in("comment_id", commentIds)
+    : { data: [] };
+  const commentsByProposal = buildComments({
+    comments: comments ?? [],
+    reactions: reactions ?? [],
+    nameById,
+    viewerId: manager?.id ?? null,
   });
 
   return (
@@ -231,6 +266,64 @@ export default async function RuleProposalsPage() {
                     )}
                   </div>
                 )}
+
+                {/* Discussion */}
+                {(() => {
+                  const thread = commentsByProposal.get(p.id) ?? [];
+                  return (
+                    <div className="mt-4 border-t border-line pt-4">
+                      <div className="mb-3 text-xs uppercase tracking-wide text-muted">
+                        Discussion{thread.length ? ` · ${thread.length}` : ""}
+                      </div>
+                      {thread.length > 0 && (
+                        <ul className="space-y-3">
+                          {thread.map((c) => {
+                            const canDeleteComment =
+                              manager != null &&
+                              (manager.id === c.authorId ||
+                                manager.role === "commissioner");
+                            return (
+                              <li key={c.id}>
+                                <div className="flex flex-wrap items-center gap-2 text-sm">
+                                  <span
+                                    aria-hidden
+                                    className="h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: c.authorColor }}
+                                  />
+                                  <span className="font-medium text-ink">
+                                    {c.authorName}
+                                  </span>
+                                  <span className="text-xs text-muted">
+                                    {commentTime(c.createdAt)}
+                                  </span>
+                                  {canDeleteComment && (
+                                    <CommentDelete
+                                      proposalId={p.id}
+                                      commentId={c.id}
+                                    />
+                                  )}
+                                </div>
+                                <p className="mt-1 whitespace-pre-wrap pl-4 text-sm text-ink">
+                                  {c.body}
+                                </p>
+                                {manager && (
+                                  <div className="pl-4">
+                                    <CommentReactions
+                                      proposalId={p.id}
+                                      commentId={c.id}
+                                      reactions={c.reactions}
+                                    />
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      {manager && <CommentForm proposalId={p.id} />}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
