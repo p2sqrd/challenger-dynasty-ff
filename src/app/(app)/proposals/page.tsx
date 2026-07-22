@@ -26,7 +26,7 @@ async function getAdoptedProposals(): Promise<AdoptedProposal[]> {
   const supabase = await createClient();
   const { data: rawProposals } = await supabase
     .from("rule_proposals")
-    .select("id, title, body, author_id, created_at, season_id");
+    .select("id, title, body, author_id, created_at, season_id, override_status");
   if (!rawProposals || rawProposals.length === 0) return [];
 
   const [{ data: seasons }, { data: managers }, { data: ledger }, { data: votes }] =

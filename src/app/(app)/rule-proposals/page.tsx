@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { RuleProposalForm } from "@/components/RuleProposalForm";
 import { RuleProposalVote } from "@/components/RuleProposalVote";
 import { RuleProposalDelete } from "@/components/RuleProposalDelete";
+import { RuleProposalOverride } from "@/components/RuleProposalOverride";
 
 function Notice({ children }: { children: React.ReactNode }) {
   return (
@@ -21,13 +22,13 @@ function Notice({ children }: { children: React.ReactNode }) {
 
 const STATUS_STYLES: Record<ProposalStatus, string> = {
   open: "border-line text-muted",
-  passed: "border-approved text-approved",
-  failed: "border-rejected text-rejected",
+  passed: "border-approved bg-approved/10 text-approved",
+  failed: "border-rejected bg-rejected/10 text-rejected",
 };
 const STATUS_LABEL: Record<ProposalStatus, string> = {
   open: "Open",
   passed: "Passed",
-  failed: "Did not pass",
+  failed: "Failed",
 };
 
 function VoterList({ voters }: { voters: Voter[] }) {
@@ -87,7 +88,7 @@ export default async function RuleProposalsPage() {
       supabase.from("budget_ledger").select("manager_id").eq("season_id", season.id),
       supabase
         .from("rule_proposals")
-        .select("id, title, body, author_id, created_at")
+        .select("id, title, body, author_id, created_at, override_status")
         .eq("season_id", season.id)
         .order("created_at", { ascending: false }),
     ]);
@@ -117,7 +118,7 @@ export default async function RuleProposalsPage() {
     <div>
       <PageHeader
         title={`${season.year} Rule Proposals`}
-        subtitle={`Propose a rule change and vote Yes or No. A proposal passes if at least ${threshold} of the ${activeCount} managers vote Yes. Passed rules move to Previous Rule Proposals.`}
+        subtitle={`Propose a rule change and vote Yes or No. A proposal passes if at least ${threshold} of the ${activeCount} managers vote Yes.`}
       />
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -167,6 +168,12 @@ export default async function RuleProposalsPage() {
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs text-muted">
                   <span>by {p.authorName}</span>
+                  {p.overridden && (
+                    <>
+                      <span>·</span>
+                      <span className="text-gold">set by commish</span>
+                    </>
+                  )}
                   {canDelete && (
                     <>
                       <span>·</span>
@@ -209,9 +216,19 @@ export default async function RuleProposalsPage() {
                   </div>
                 </div>
 
-                {manager && !locked && (
-                  <div className="mt-4 border-t border-line pt-4">
-                    <RuleProposalVote proposalId={p.id} myVote={p.myVote} />
+                {((manager && !locked) || manager?.role === "commissioner") && (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+                    {manager && !locked ? (
+                      <RuleProposalVote proposalId={p.id} myVote={p.myVote} />
+                    ) : (
+                      <span />
+                    )}
+                    {manager?.role === "commissioner" && (
+                      <RuleProposalOverride
+                        proposalId={p.id}
+                        overridden={p.overridden}
+                      />
+                    )}
                   </div>
                 )}
               </div>

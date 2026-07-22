@@ -178,6 +178,7 @@ export interface Database {
           author_id: string;
           title: string;
           body: string | null;
+          override_status: string | null;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["rule_proposals"]["Row"]> & {

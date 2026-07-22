@@ -57,6 +57,28 @@ describe("buildProposals", () => {
     expect(p.status).toBe("open");
   });
 
+  it("lets a commissioner override pin the status regardless of votes or lock", () => {
+    const [forced] = buildProposals({
+      proposals: [
+        {
+          id: "p1",
+          title: "x",
+          body: null,
+          author_id: "m1",
+          created_at: "2026-01-01",
+          override_status: "passed",
+        },
+      ],
+      votes: [{ proposal_id: "p1", manager_id: "m2", vote: false }],
+      nameById,
+      viewerId: null,
+      threshold: 7,
+      locked: false, // still open, and only a No vote…
+    });
+    expect(forced.status).toBe("passed"); // …but the override wins
+    expect(forced.overridden).toBe(true);
+  });
+
   it("marks a locked proposal passed once it clears the threshold", () => {
     const votes = Array.from({ length: 7 }, (_, i) => ({
       proposal_id: "p1",

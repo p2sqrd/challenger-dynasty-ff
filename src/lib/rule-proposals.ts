@@ -20,6 +20,8 @@ export interface ProposalWithTally {
   /** The viewer's current vote, if any (true = yes, false = no). */
   myVote: boolean | null;
   status: ProposalStatus;
+  /** True when the status was pinned by a commissioner override. */
+  overridden: boolean;
 }
 
 /**
@@ -47,6 +49,8 @@ export interface RawProposal {
   body: string | null;
   author_id: string;
   created_at: string;
+  /** Commissioner override: 'passed' | 'failed' pins the status; null = derive. */
+  override_status?: string | null;
 }
 
 export interface RawVote {
@@ -98,6 +102,14 @@ export function buildProposals({
       ? rows.find((r) => r.manager_id === viewerId)?.vote ?? null
       : null;
 
+    // A commissioner override pins the outcome regardless of the tally or
+    // whether voting is still open.
+    const overridden =
+      p.override_status === "passed" || p.override_status === "failed";
+    const status: ProposalStatus = overridden
+      ? (p.override_status as ProposalStatus)
+      : computeStatus(yes.length, threshold, locked);
+
     return {
       id: p.id,
       title: p.title,
@@ -108,7 +120,8 @@ export function buildProposals({
       yes,
       no,
       myVote: mine,
-      status: computeStatus(yes.length, threshold, locked),
+      status,
+      overridden,
     };
   });
 }
