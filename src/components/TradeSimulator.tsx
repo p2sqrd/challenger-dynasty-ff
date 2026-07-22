@@ -13,22 +13,111 @@ export interface SimPlayer {
 export interface SimRoster {
   managerId: string;
   name: string;
+  /** This manager's pre-trade auction budget (base + cash trades). */
+  auctionBudget: number;
   roster: SimPlayer[];
+}
+
+const listBox =
+  "max-h-56 overflow-y-auto rounded-md border border-line bg-canvas p-1";
+const rowBase =
+  "flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-surface-2";
+
+/**
+ * One side's keeper try-out: pick keepers off a (post-trade) roster and see
+ * the spend, dollars left, and roster-fill math. Purely presentational.
+ */
+function KeeperPanel({
+  title,
+  roster,
+  selected,
+  onToggle,
+  budget,
+  rosterSize,
+}: {
+  title: string;
+  roster: SimPlayer[];
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+  budget: number;
+  rosterSize: number;
+}) {
+  const active = roster.filter((p) => selected.has(p.playerId));
+  const spend = active.reduce((s, p) => s + (p.keeperPrice ?? 0), 0);
+  const validation = validateKeeperRoster({
+    startingBudget: budget,
+    totalKeeperSpend: spend,
+    keeperCount: active.length,
+    rosterSize,
+  });
+
+  return (
+    <div>
+      <div className="mb-1 text-sm font-medium text-ink">{title}</div>
+      <div className={listBox}>
+        {roster.map((p) => {
+          const keepable = p.keeperPrice != null;
+          return (
+            <label
+              key={p.playerId}
+              className={`${rowBase} justify-between ${
+                keepable ? "" : "cursor-not-allowed opacity-60"
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  disabled={!keepable}
+                  checked={selected.has(p.playerId)}
+                  onChange={() => onToggle(p.playerId)}
+                  className="h-4 w-4 accent-[var(--color-brand)]"
+                />
+                <span className="text-ink">{p.name}</span>
+              </span>
+              <span className="tabular text-xs text-muted">
+                {keepable ? `$${p.keeperPrice}` : "no keeper price"}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
+        <span className="text-muted">
+          Keeping <span className="tabular text-ink">{active.length}</span> for{" "}
+          <span className="tabular text-ink">${spend}</span>
+        </span>
+        <span className="text-muted">
+          Auction $ left{" "}
+          <span
+            className={`tabular font-semibold ${
+              validation.ok ? "text-ink" : "text-rejected"
+            }`}
+          >
+            ${validation.remainingBudget}
+          </span>{" "}
+          for {validation.emptySpots} spots
+        </span>
+      </div>
+      {!validation.ok && (
+        <p className="mt-2 text-sm text-rejected">{validation.violations[0]}</p>
+      )}
+    </div>
+  );
 }
 
 /**
  * A client-side "what-if" trade tool: pick a partner, move players + cash, and
- * see your resulting roster, auction budget, and keeper math. Nothing is saved.
+ * see both sides' resulting rosters, auction budgets, and keeper math. Nothing
+ * is saved.
  */
 export function TradeSimulator({
   me,
   others,
-  auctionBudget,
   rosterSize = ROSTER_SIZE,
 }: {
   me: SimRoster;
   others: SimRoster[];
-  auctionBudget: number;
   rosterSize?: number;
 }) {
   const [open, setOpen] = useState(false);
@@ -37,6 +126,7 @@ export function TradeSimulator({
   const [receive, setReceive] = useState<Set<string>>(new Set());
   const [cash, setCash] = useState("0");
   const [keepers, setKeepers] = useState<Set<string>>(new Set());
+  const [partnerKeepers, setPartnerKeepers] = useState<Set<string>>(new Set());
 
   const partner = others.find((o) => o.managerId === partnerId) ?? null;
 
@@ -52,6 +142,7 @@ export function TradeSimulator({
   const toggleSend = toggle(setSend);
   const toggleReceive = toggle(setReceive);
   const toggleKeeper = toggle(setKeepers);
+  const togglePartnerKeeper = toggle(setPartnerKeepers);
 
   function reset() {
     setPartnerId("");
@@ -59,6 +150,7 @@ export function TradeSimulator({
     setReceive(new Set());
     setCash("0");
     setKeepers(new Set());
+    setPartnerKeepers(new Set());
   }
 
   // Post-trade roster: your players minus who you sent, plus who you got.
@@ -70,22 +162,21 @@ export function TradeSimulator({
     return [...kept, ...gained].sort((a, b) => a.name.localeCompare(b.name));
   }, [me.roster, send, partner, receive]);
 
-  // Cash is entered from your point of view: positive means you *receive* it
-  // (budget goes up), negative means you send it (budget goes down).
-  const cashNum = Number.isFinite(Number(cash)) ? Math.trunc(Number(cash)) : 0;
-  const newBudget = auctionBudget + cashNum;
+  // The partner's mirror-image post-trade roster: their players minus what
+  // they sent you (what you receive), plus what they got from you (what you
+  // send).
+  const partnerNewRoster: SimPlayer[] = useMemo(() => {
+    if (!partner) return [];
+    const kept = partner.roster.filter((p) => !receive.has(p.playerId));
+    const gained = me.roster.filter((p) => send.has(p.playerId));
+    return [...kept, ...gained].sort((a, b) => a.name.localeCompare(b.name));
+  }, [partner, receive, me.roster, send]);
 
-  const activeKeepers = newRoster.filter((p) => keepers.has(p.playerId));
-  const keeperSpend = activeKeepers.reduce(
-    (s, p) => s + (p.keeperPrice ?? 0),
-    0
-  );
-  const validation = validateKeeperRoster({
-    startingBudget: newBudget,
-    totalKeeperSpend: keeperSpend,
-    keeperCount: activeKeepers.length,
-    rosterSize,
-  });
+  // Cash is entered from your point of view: positive means you *receive* it
+  // (your budget goes up, the partner's goes down), negative means you send it.
+  const cashNum = Number.isFinite(Number(cash)) ? Math.trunc(Number(cash)) : 0;
+  const newBudget = me.auctionBudget + cashNum;
+  const partnerNewBudget = partner ? partner.auctionBudget - cashNum : 0;
 
   const changed =
     partnerId !== "" || send.size > 0 || receive.size > 0 || cashNum !== 0;
@@ -108,11 +199,6 @@ export function TradeSimulator({
       </section>
     );
   }
-
-  const listBox =
-    "max-h-56 overflow-y-auto rounded-md border border-line bg-canvas p-1";
-  const rowBase =
-    "flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-surface-2";
 
   return (
     <section className="mt-12">
@@ -141,6 +227,7 @@ export function TradeSimulator({
             onChange={(e) => {
               setPartnerId(e.target.value);
               setReceive(new Set());
+              setPartnerKeepers(new Set());
             }}
             className="w-full rounded-md border border-line bg-canvas px-3 py-2 text-sm text-ink focus:border-brand focus:outline-none sm:w-72"
           >
@@ -236,62 +323,29 @@ export function TradeSimulator({
               </div>
             </div>
 
-            {/* 4. Keepers */}
+            {/* 4. Keepers — both sides */}
             <div>
               <div className="mb-1.5 text-xs uppercase tracking-wide text-muted">
-                4 · Try your keepers
+                4 · Try keepers
               </div>
-              <div className={listBox}>
-                {newRoster.map((p) => {
-                  const keepable = p.keeperPrice != null;
-                  return (
-                    <label
-                      key={p.playerId}
-                      className={`${rowBase} justify-between ${
-                        keepable ? "" : "cursor-not-allowed opacity-60"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          disabled={!keepable}
-                          checked={keepers.has(p.playerId)}
-                          onChange={() => toggleKeeper(p.playerId)}
-                          className="h-4 w-4 accent-[var(--color-brand)]"
-                        />
-                        <span className="text-ink">{p.name}</span>
-                      </span>
-                      <span className="tabular text-xs text-muted">
-                        {keepable ? `$${p.keeperPrice}` : "no keeper price"}
-                      </span>
-                    </label>
-                  );
-                })}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <KeeperPanel
+                  title="Your keepers"
+                  roster={newRoster}
+                  selected={keepers}
+                  onToggle={toggleKeeper}
+                  budget={newBudget}
+                  rosterSize={rosterSize}
+                />
+                <KeeperPanel
+                  title={`${partner.name}'s keepers`}
+                  roster={partnerNewRoster}
+                  selected={partnerKeepers}
+                  onToggle={togglePartnerKeeper}
+                  budget={partnerNewBudget}
+                  rosterSize={rosterSize}
+                />
               </div>
-
-              <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
-                <span className="text-muted">
-                  Keeping{" "}
-                  <span className="tabular text-ink">{activeKeepers.length}</span>{" "}
-                  for <span className="tabular text-ink">${keeperSpend}</span>
-                </span>
-                <span className="text-muted">
-                  Auction $ left{" "}
-                  <span
-                    className={`tabular font-semibold ${
-                      validation.ok ? "text-ink" : "text-rejected"
-                    }`}
-                  >
-                    ${validation.remainingBudget}
-                  </span>{" "}
-                  for {validation.emptySpots} spots
-                </span>
-              </div>
-              {!validation.ok && (
-                <p className="mt-2 text-sm text-rejected">
-                  {validation.violations[0]}
-                </p>
-              )}
             </div>
           </>
         )}
@@ -300,7 +354,7 @@ export function TradeSimulator({
           <button
             type="button"
             onClick={reset}
-            disabled={!changed && keepers.size === 0}
+            disabled={!changed && keepers.size === 0 && partnerKeepers.size === 0}
             className="rounded-md border border-line px-4 py-2 text-sm text-ink transition-colors hover:bg-surface-2 disabled:opacity-40"
           >
             Reset
