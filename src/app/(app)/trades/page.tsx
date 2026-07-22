@@ -86,6 +86,19 @@ export default async function TradesPage() {
     (t) => t.status === "approved" || t.status === "rejected"
   );
 
+  // Everyone can see mid-flight trades (awaiting cash or approval) so a synced
+  // trade is visible league-wide right away — not just to the two managers in
+  // it. We drop the ones already surfaced to this viewer as an action above
+  // (their own cash-entry forms, and the commissioner's approval queue) to
+  // avoid showing the same trade twice.
+  const needsMyCashIds = new Set(needsMyCash.map((t) => t.id));
+  const inProgress = allTrades.filter(
+    (t) =>
+      (t.status === "pending_cash" || t.status === "pending_approval") &&
+      !needsMyCashIds.has(t.id) &&
+      !(manager?.role === "commissioner" && t.status === "pending_approval")
+  );
+
   // Tradeback warnings only cover straightforward two-team trades — with
   // three or more teams involved, Sleeper's data doesn't tell us which side
   // a given player came from, so we can't reliably build the "from -> to"
@@ -239,6 +252,34 @@ export default async function TradesPage() {
           />
         </section>
       )}
+
+      <section className="mt-12">
+        <h2 className="nameplate-type text-lg text-ink">In progress</h2>
+        {inProgress.length === 0 ? (
+          <p className="mt-2 text-sm text-muted">No trades in progress.</p>
+        ) : (
+          <div className="mt-3 space-y-4">
+            {inProgress.map((t) => (
+              <div
+                key={t.id}
+                className="rounded-md border border-line bg-surface p-5"
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="rounded-full border border-line px-2 py-0.5 text-xs text-pending">
+                    {t.status === "pending_cash"
+                      ? "Awaiting cash"
+                      : "Awaiting commissioner approval"}
+                  </span>
+                  <span className="tabular text-xs text-muted">
+                    {new Date(t.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <TradeSidesView sides={viewSides(t.id)} />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="mt-12">
         <h2 className="nameplate-type text-lg text-ink">History</h2>
