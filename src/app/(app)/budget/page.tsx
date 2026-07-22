@@ -1,13 +1,22 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getPlayerNames } from "@/lib/players";
+import { resolveTeam } from "@/lib/teams";
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
+import { BudgetChip, type ChipSide } from "@/components/BudgetChip";
+
+interface Chip {
+  amount: number;
+  /** Player/team detail for real app-processed trades; null for seeded ones. */
+  sides: ChipSide[] | null;
+}
 
 interface Row {
   managerId: string;
   name: string;
   base: number;
-  trades: number[];
+  trades: Chip[];
   keeperSpend: number;
   current: number;
   hasEntries: boolean;
@@ -47,10 +56,42 @@ export default async function BudgetPage() {
     supabase.from("managers").select("id, display_name"),
     supabase
       .from("budget_ledger")
-      .select("manager_id, amount, reason, created_at")
+      .select("manager_id, amount, reason, source_id, created_at")
       .eq("season_id", activeSeason.id)
       .order("created_at", { ascending: true }),
   ]);
+  const nameById = new Map((managers ?? []).map((m) => [m.id, m.display_name]));
+
+  // For trade chips backed by a real trade (source_id → a trades row), pull the
+  // sides so the hover can show who got which players. Seeded spreadsheet
+  // figures have no source_id and stay detail-less.
+  const sourceIds = [
+    ...new Set(
+      (ledger ?? [])
+        .filter((e) => e.reason === "trade" && e.source_id)
+        .map((e) => e.source_id as string)
+    ),
+  ];
+  const sidesByTradeId = new Map<string, ChipSide[]>();
+  if (sourceIds.length > 0) {
+    const { data: tradeSides } = await supabase
+      .from("trade_sides")
+      .select("trade_id, manager_id, players_received, cash_amount")
+      .in("trade_id", sourceIds);
+    const playerNames = await getPlayerNames(
+      supabase,
+      (tradeSides ?? []).flatMap((s) => s.players_received)
+    );
+    for (const s of tradeSides ?? []) {
+      const list = sidesByTradeId.get(s.trade_id) ?? [];
+      list.push({
+        name: resolveTeam(nameById.get(s.manager_id)).name,
+        players: s.players_received.map((p) => playerNames.get(p) ?? p),
+        cash: s.cash_amount,
+      });
+      sidesByTradeId.set(s.trade_id, list);
+    }
+  }
 
   // Only managers with a ledger entry this season are in the league — this
   // naturally drops anyone who has left (they carry no 2026 budget).
@@ -60,9 +101,12 @@ export default async function BudgetPage() {
       const base = entries
         .filter((e) => e.reason === "starting_budget")
         .reduce((s, e) => s + e.amount, 0);
-      const trades = entries
+      const trades: Chip[] = entries
         .filter((e) => e.reason === "trade")
-        .map((e) => e.amount);
+        .map((e) => ({
+          amount: e.amount,
+          sides: e.source_id ? sidesByTradeId.get(e.source_id) ?? null : null,
+        }));
       const keeperSpend = entries
         .filter((e) => e.reason === "keeper")
         .reduce((s, e) => s + e.amount, 0);
@@ -105,7 +149,7 @@ export default async function BudgetPage() {
           </thead>
           <tbody>
             {rows.map((r) => {
-              const net = r.trades.reduce((s, a) => s + a, 0);
+              const net = r.trades.reduce((s, c) => s + c.amount, 0);
               return (
                 <tr
                   key={r.managerId}
@@ -128,17 +172,8 @@ export default async function BudgetPage() {
                       <span className="text-muted">—</span>
                     ) : (
                       <span className="flex flex-wrap items-center gap-1">
-                        {r.trades.map((a, i) => (
-                          <span
-                            key={i}
-                            className={`tabular rounded px-1.5 py-0.5 text-xs ${
-                              a >= 0
-                                ? "bg-approved/10 text-approved"
-                                : "bg-rejected/10 text-rejected"
-                            }`}
-                          >
-                            {a >= 0 ? "+" : "−"}${Math.abs(a)}
-                          </span>
+                        {r.trades.map((c, i) => (
+                          <BudgetChip key={i} amount={c.amount} sides={c.sides} />
                         ))}
                         {r.trades.length > 0 && (
                           <span className="tabular ml-1 text-xs text-muted">
