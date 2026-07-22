@@ -191,15 +191,18 @@ export default async function RuleProposalsPage() {
             return (
               <div
                 key={p.id}
-                className="rounded-md border border-line bg-surface p-5"
+                className="group rounded-md border border-line bg-surface p-5"
               >
                 <div className="flex items-start justify-between gap-4">
                   <h3 className="font-medium text-ink">{p.title}</h3>
-                  <span
-                    className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${STATUS_STYLES[p.status]}`}
-                  >
-                    {STATUS_LABEL[p.status]}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-xs ${STATUS_STYLES[p.status]}`}
+                    >
+                      {STATUS_LABEL[p.status]}
+                    </span>
+                    {canDelete && <RuleProposalDelete proposalId={p.id} />}
+                  </div>
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs text-muted">
                   <span>by {p.authorName}</span>
@@ -207,12 +210,6 @@ export default async function RuleProposalsPage() {
                     <>
                       <span>·</span>
                       <span className="text-gold">set by commish</span>
-                    </>
-                  )}
-                  {canDelete && (
-                    <>
-                      <span>·</span>
-                      <RuleProposalDelete proposalId={p.id} />
                     </>
                   )}
                 </div>
