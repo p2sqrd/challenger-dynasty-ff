@@ -8,6 +8,7 @@ import { TradeSidesView } from "@/components/TradeSides";
 import { TradeCashForm } from "@/components/TradeCashForm";
 import { TradeApprovalQueue } from "@/components/TradeApprovalQueue";
 import { ManualTradeForm } from "@/components/ManualTradeForm";
+import { SyncTradesButton } from "@/components/SyncTradesButton";
 
 interface TradeSideRow {
   trade_id: string;
@@ -194,7 +195,8 @@ export default async function TradesPage() {
     <div>
       <PageHeader
         title={`Trades · ${activeSeason.year}`}
-        subtitle="New trades are pulled in from Sleeper automatically. If one you just made isn't showing up yet, ask your commissioner to run the sync."
+        subtitle="New trades sync from Sleeper automatically every few hours. Just made one? Hit Sync from Sleeper to pull it in now."
+        right={manager ? <SyncTradesButton /> : undefined}
       />
 
       {manager && (
