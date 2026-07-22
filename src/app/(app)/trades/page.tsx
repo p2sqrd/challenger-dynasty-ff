@@ -99,7 +99,6 @@ export default async function TradesPage() {
   // — a Sleeper hiccup just hides the tool rather than breaking the page.
   let simMe: SimRoster | null = null;
   let simOthers: SimRoster[] = [];
-  let simBudget = 0;
   if (manager) {
     try {
       const rosters = await getLeagueRosters(process.env.SLEEPER_LEAGUE_ID!);
@@ -114,21 +113,31 @@ export default async function TradesPage() {
         .filter((x) => x.playerIds.length > 0);
 
       const allPlayerIds = withRoster.flatMap((x) => x.playerIds);
-      const [simNames, keeperPrices, budget] = await Promise.all([
+      // Every manager's auction budget — the partner's keeper try-out needs
+      // theirs too, not just the logged-in manager's.
+      const [simNames, keeperPrices, budgets] = await Promise.all([
         getPlayerNames(supabase, allPlayerIds),
         getKeeperPrices(supabase, activeSeason.year, allPlayerIds),
-        getManagerAuctionBudget(
-          supabase,
-          activeSeason.id,
-          manager.id,
-          activeSeason.starting_budget
+        Promise.all(
+          withRoster.map((x) =>
+            getManagerAuctionBudget(
+              supabase,
+              activeSeason.id,
+              x.manager.id,
+              activeSeason.starting_budget
+            )
+          )
         ),
       ]);
-      simBudget = budget;
+      const budgetByManagerId = new Map(
+        withRoster.map((x, i) => [x.manager.id, budgets[i]])
+      );
 
       const toSimRoster = (x: (typeof withRoster)[number]): SimRoster => ({
         managerId: x.manager.id,
         name: resolveTeam(x.manager.display_name).name,
+        auctionBudget:
+          budgetByManagerId.get(x.manager.id) ?? activeSeason.starting_budget,
         roster: x.playerIds
           .map((playerId) => ({
             playerId,
@@ -316,13 +325,7 @@ export default async function TradesPage() {
         </section>
       )}
 
-      {simMe && (
-        <TradeSimulator
-          me={simMe}
-          others={simOthers}
-          auctionBudget={simBudget}
-        />
-      )}
+      {simMe && <TradeSimulator me={simMe} others={simOthers} />}
 
       <section className="mt-12">
         <h2 className="nameplate-type text-lg text-ink">In progress</h2>
