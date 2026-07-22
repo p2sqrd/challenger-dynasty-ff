@@ -17,7 +17,7 @@ export async function POST(
   const { cashAmount } = (await request.json().catch(() => ({}))) as {
     cashAmount?: number;
   };
-  if (!Number.isInteger(cashAmount)) {
+  if (cashAmount === undefined || !Number.isInteger(cashAmount)) {
     return NextResponse.json(
       { error: "cashAmount must be an integer" },
       { status: 400 }
@@ -39,44 +39,52 @@ export async function POST(
     );
   }
 
-  const { data: side } = await admin
+  const { data: allSides, error: sidesError } = await admin
     .from("trade_sides")
-    .select("id")
-    .eq("trade_id", id)
-    .eq("manager_id", manager.id)
-    .single();
-  if (!side) {
+    .select("id, manager_id")
+    .eq("trade_id", id);
+  if (sidesError) {
+    return NextResponse.json({ error: sidesError.message }, { status: 500 });
+  }
+  const mySide = (allSides ?? []).find((s) => s.manager_id === manager.id);
+  if (!mySide) {
     return NextResponse.json(
       { error: "You are not a party to this trade" },
       { status: 403 }
     );
   }
 
+  // Only one manager needs to enter the cash. Record it on the submitter's
+  // side, and — for a standard two-team trade — mirror it onto the other side
+  // (cash is zero-sum: whoever pays, the other receives the same). Then it
+  // goes straight to the commissioner; no waiting on the other manager.
   const { error: updateError } = await admin
     .from("trade_sides")
     .update({ cash_amount: cashAmount })
-    .eq("id", side.id);
+    .eq("id", mySide.id);
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  const { data: allSides, error: sidesError } = await admin
-    .from("trade_sides")
-    .select("cash_amount")
-    .eq("trade_id", id);
-  if (sidesError) {
-    return NextResponse.json({ error: sidesError.message }, { status: 500 });
+  if ((allSides ?? []).length === 2) {
+    const otherSide = allSides!.find((s) => s.manager_id !== manager.id);
+    if (otherSide) {
+      const { error: mirrorError } = await admin
+        .from("trade_sides")
+        .update({ cash_amount: -cashAmount })
+        .eq("id", otherSide.id);
+      if (mirrorError) {
+        return NextResponse.json({ error: mirrorError.message }, { status: 500 });
+      }
+    }
   }
 
-  const allEntered = (allSides ?? []).every((s) => s.cash_amount !== null);
-  if (allEntered) {
-    const { error: statusError } = await admin
-      .from("trades")
-      .update({ status: "pending_approval" })
-      .eq("id", id);
-    if (statusError) {
-      return NextResponse.json({ error: statusError.message }, { status: 500 });
-    }
+  const { error: statusError } = await admin
+    .from("trades")
+    .update({ status: "pending_approval" })
+    .eq("id", id);
+  if (statusError) {
+    return NextResponse.json({ error: statusError.message }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
