@@ -171,6 +171,44 @@ export interface Database {
         Update: Partial<{ key: string; created_at: string }>;
         Relationships: [];
       };
+      rule_proposals: {
+        Row: {
+          id: string;
+          season_id: string;
+          author_id: string;
+          title: string;
+          body: string | null;
+          override_status: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["rule_proposals"]["Row"]> & {
+          season_id: string;
+          author_id: string;
+          title: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["rule_proposals"]["Row"]>;
+        Relationships: [];
+      };
+      rule_proposal_votes: {
+        Row: {
+          proposal_id: string;
+          manager_id: string;
+          vote: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          proposal_id: string;
+          manager_id: string;
+          vote: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["rule_proposal_votes"]["Row"]
+        >;
+        Relationships: [];
+      };
       draft_records: {
         Row: {
           id: string;

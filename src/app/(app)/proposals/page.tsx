@@ -1,10 +1,91 @@
 import { PageHeader } from "@/components/PageHeader";
 import { resolveTeam } from "@/lib/teams";
+import { createClient } from "@/lib/supabase/server";
+import {
+  buildProposals,
+  majorityThreshold,
+  type ProposalWithTally,
+} from "@/lib/rule-proposals";
 
 interface Vote {
   manager: string;
   vote: string;
   comment: string | null;
+}
+
+interface AdoptedProposal extends ProposalWithTally {
+  year: number;
+}
+
+/**
+ * Rule proposals that reached a whole-league majority in a season whose
+ * voting has closed. These graduate here from the live "2026 Rule Proposals"
+ * page once their deadline passes and they've passed.
+ */
+async function getAdoptedProposals(): Promise<AdoptedProposal[]> {
+  const supabase = await createClient();
+  const { data: rawProposals } = await supabase
+    .from("rule_proposals")
+    .select("id, title, body, author_id, created_at, season_id, override_status");
+  if (!rawProposals || rawProposals.length === 0) return [];
+
+  const [{ data: seasons }, { data: managers }, { data: ledger }, { data: votes }] =
+    await Promise.all([
+      supabase.from("seasons").select("id, year, keeper_deadline"),
+      supabase.from("managers").select("id, display_name"),
+      supabase.from("budget_ledger").select("season_id, manager_id"),
+      supabase
+        .from("rule_proposal_votes")
+        .select("proposal_id, manager_id, vote")
+        .in(
+          "proposal_id",
+          rawProposals.map((p) => p.id)
+        ),
+    ]);
+
+  const nameById = new Map((managers ?? []).map((m) => [m.id, m.display_name]));
+  const seasonById = new Map((seasons ?? []).map((s) => [s.id, s]));
+  const activeBySeason = new Map<string, Set<string>>();
+  for (const l of ledger ?? []) {
+    const set = activeBySeason.get(l.season_id) ?? new Set<string>();
+    set.add(l.manager_id);
+    activeBySeason.set(l.season_id, set);
+  }
+
+  const now = Date.now();
+  const bySeason = new Map<string, typeof rawProposals>();
+  for (const p of rawProposals) {
+    const list = bySeason.get(p.season_id) ?? [];
+    list.push(p);
+    bySeason.set(p.season_id, list);
+  }
+
+  const adopted: AdoptedProposal[] = [];
+  for (const [seasonId, seasonProposals] of bySeason) {
+    const season = seasonById.get(seasonId);
+    if (!season) continue;
+    const locked =
+      !!season.keeper_deadline &&
+      new Date(season.keeper_deadline).getTime() <= now;
+    if (!locked) continue; // only finalized seasons contribute adopted rules
+    const activeCount = activeBySeason.get(seasonId)?.size || 12;
+    const threshold = majorityThreshold(activeCount);
+    const built = buildProposals({
+      proposals: seasonProposals,
+      votes: votes ?? [],
+      nameById,
+      viewerId: null,
+      threshold,
+      locked: true,
+    });
+    for (const b of built) {
+      if (b.status === "passed") adopted.push({ ...b, year: season.year });
+    }
+  }
+
+  return adopted.sort(
+    (a, b) => b.year - a.year || a.title.localeCompare(b.title)
+  );
 }
 
 interface Proposal {
@@ -144,14 +225,55 @@ const PROPOSALS: Proposal[] = [
   },
 ];
 
-export default function ProposalsPage() {
+export default async function ProposalsPage() {
+  const adopted = await getAdoptedProposals();
+
   return (
     <div>
       <PageHeader
-        title="Rule Proposals"
-        subtitle="The historical record of 23-24 rule proposal votes, kept around for posterity."
+        title="Previous Rule Proposals"
+        subtitle="Rules the league has adopted, plus the historical record of past proposal votes."
       />
 
+      {adopted.length > 0 && (
+        <section className="mb-10">
+          <h2 className="nameplate-type mb-4 text-xl text-ink">Adopted rules</h2>
+          <div className="space-y-4">
+            {adopted.map((p) => (
+              <div
+                key={p.id}
+                className="rounded-md border border-line bg-surface p-5"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <h3 className="font-medium text-ink">{p.title}</h3>
+                  <span className="shrink-0 rounded-full border border-approved px-2 py-0.5 text-xs text-approved">
+                    Passed · {p.year}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-muted">by {p.authorName}</div>
+                {p.body && (
+                  <p className="mt-3 whitespace-pre-wrap text-sm text-muted">
+                    {p.body}
+                  </p>
+                )}
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                  <span className="tabular font-medium text-approved">
+                    Yes {p.yes.length}
+                  </span>
+                  <span className="tabular font-medium text-rejected">
+                    No {p.no.length}
+                  </span>
+                  <span className="text-muted">
+                    {[...p.yes, ...p.no].length} of the league voted
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <h2 className="nameplate-type mb-4 text-xl text-ink">2023–24 archive</h2>
       <div className="space-y-4">
         {PROPOSALS.map((p) => (
           <div
