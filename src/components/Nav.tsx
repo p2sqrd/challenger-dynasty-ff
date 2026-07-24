@@ -20,6 +20,7 @@ export async function Nav() {
     { href: "/trades", label: "Trades", match: "prefix" as const },
     { href: "/budget", label: "Auction Budget", match: "prefix" as const },
     { href: "/fire-sale", label: "Fire Sale", match: "prefix" as const },
+    { href: "/assistant", label: "Ask AI", match: "prefix" as const },
     {
       href: "/archive",
       label: "More",
