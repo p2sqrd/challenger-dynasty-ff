@@ -73,8 +73,6 @@ export async function TopBanners() {
     !season.keeper_deadline ||
     new Date(season.keeper_deadline).getTime() > now;
 
-  if (activeSales.length === 0 && !proposalsOpen) return null;
-
   // One public sale → deep-link to its live room; otherwise the Fire Sale list.
   const single = activeSales.length === 1 ? activeSales[0] : null;
   const fireHref =
@@ -114,6 +112,11 @@ export async function TopBanners() {
           Propose a 2026 rule change and vote on the league&apos;s proposals.
         </Banner>
       )}
+
+      <Banner href="/assistant" accent="--color-approved" icon="✨" cta="Ask AI">
+        <span className="font-medium">New:</span> ask the league AI about your
+        roster, trades, or the rules.
+      </Banner>
     </div>
   );
 }
