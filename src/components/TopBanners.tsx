@@ -113,9 +113,14 @@ export async function TopBanners() {
         </Banner>
       )}
 
-      <Banner href="/assistant" accent="--color-approved" icon="✨" cta="Ask AI">
-        <span className="font-medium">New:</span> ask the league AI about your
-        roster, trades, or the rules.
+      <Banner
+        href="/assistant"
+        accent="--color-approved"
+        icon="✨"
+        cta="Ask Miss Aje"
+      >
+        <span className="font-medium">New:</span> ask Miss Aje about your
+        roster, trades, or the rules — if you can take the heat.
       </Banner>
     </div>
   );

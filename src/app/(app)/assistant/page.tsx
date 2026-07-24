@@ -10,8 +10,8 @@ export default async function AssistantPage() {
   return (
     <div>
       <PageHeader
-        title="Ask AI"
-        subtitle="A league-savvy assistant — it knows the Challenger Dynasty rules and your roster. Ask about trades, waivers, roster construction, or how a rule works."
+        title="Ask Miss Aje"
+        subtitle="Challenger Dynasty's resident know-it-all — she knows the rules and your roster, and she has opinions. Ask about trades, waivers, roster construction, or how a rule works (and brace yourself)."
       />
 
       {manager ? (
