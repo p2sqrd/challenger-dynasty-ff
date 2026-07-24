@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
-// The approval queue now lives on the Commish page.
+// Keepers are self-service now — there's no approval step. Bounce any old
+// bookmark of this route back to the Keepers page.
 export default function KeeperApprovalPage() {
-  redirect("/commish");
+  redirect("/keepers");
 }

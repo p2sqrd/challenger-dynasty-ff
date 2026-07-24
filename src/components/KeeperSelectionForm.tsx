@@ -50,7 +50,9 @@ export function KeeperSelectionForm({
   >({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [saved, setSaved] = useState(false);
+  // Treat a manager who already has picks on file as "submitted" on load, so
+  // the confirmation reflects reality before they touch anything.
+  const [saved, setSaved] = useState(existingSelections.length > 0);
 
   function priceFor(player: EligiblePlayer): {
     newPrice: number;
@@ -254,17 +256,25 @@ export function KeeperSelectionForm({
         >
           {submitting ? "Submitting…" : saved ? "Update keepers" : "Submit keepers"}
         </button>
-        {saved && (
-          <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-approved">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-approved" />
-            Saved
+        {saved ? (
+          <div className="mt-3 rounded-md border border-approved/30 bg-approved/10 p-3 text-center text-xs">
+            <p className="flex items-center justify-center gap-1.5 font-medium text-approved">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-approved" />
+              Keepers submitted
+            </p>
+            <p className="mt-1 text-muted">
+              {deadlineLabel
+                ? `Nothing else to do — you can change them anytime before the deadline (${deadlineLabel}).`
+                : "Nothing else to do — you can change them anytime before the deadline."}
+            </p>
+          </div>
+        ) : (
+          <p className="mt-2 text-center text-xs text-muted">
+            {deadlineLabel
+              ? `Submit anytime before the keeper deadline (${deadlineLabel}). No approval needed — you can keep editing until then.`
+              : "Submit anytime before the keeper deadline. No approval needed — you can keep editing until then."}
           </p>
         )}
-        <p className="mt-2 text-center text-xs text-muted">
-          {deadlineLabel
-            ? `You can keep editing until the keeper deadline (${deadlineLabel}).`
-            : "You can keep editing until the keeper deadline."}
-        </p>
       </div>
     </div>
   );
