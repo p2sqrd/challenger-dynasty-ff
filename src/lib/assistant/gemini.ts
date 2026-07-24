@@ -5,7 +5,11 @@
  * GEMINI_MODEL (default: a free Flash model).
  */
 
-const DEFAULT_MODEL = "gemini-2.0-flash";
+// "gemini-flash-latest" tracks Google's current free-tier Flash model. Pinned
+// versions like "gemini-2.0-flash" / "gemini-2.5-flash" carry zero free-tier
+// quota (or 404 for new keys), so the moving alias is the reliable default.
+// Override with GEMINI_MODEL if you have paid quota for a specific model.
+const DEFAULT_MODEL = "gemini-flash-latest";
 
 const SYSTEM_INSTRUCTION = `You are "Miss Aje", the resident trash-talking oracle of "Challenger Dynasty", a long-running fantasy football keeper league full of friends who mercilessly bust each other's chops. You are given the league's rules and the asking manager's own current roster.
 
@@ -63,7 +67,10 @@ export async function askGemini(
     ],
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 800,
+      // gemini-flash-latest is a "thinking" model — hidden reasoning shares the
+      // output budget, so keep this generous or the visible reply truncates
+      // mid-sentence. Cost is per token actually used, not the ceiling.
+      maxOutputTokens: 4096,
     },
   };
 
@@ -75,6 +82,10 @@ export async function askGemini(
     });
 
     if (!res.ok) {
+      // Surface Google's real reason in server logs (quota, bad model, key
+      // restrictions) — the user-facing message stays in character.
+      const detail = await res.text().catch(() => "");
+      console.error(`Gemini ${res.status} (model ${model}):`, detail.slice(0, 500));
       return {
         ok: false,
         error: "Miss Aje is ignoring you right now — try again in a bit.",
