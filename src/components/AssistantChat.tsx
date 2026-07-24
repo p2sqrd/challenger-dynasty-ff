@@ -34,7 +34,7 @@ export function AssistantChat() {
         setAnswer(data.answer ?? "");
       }
     } catch {
-      setError("Couldn't reach the assistant — check your connection.");
+      setError("Couldn't reach Miss Aje — check your connection.");
     } finally {
       setLoading(false);
     }
@@ -86,9 +86,9 @@ export function AssistantChat() {
         </summary>
         <p className="mt-1.5 max-w-prose">
           Keeper selections are sealed until the deadline — not even
-          commissioners can see them early. To keep that promise, the assistant
-          is never given keeper prices, budgets, or picks, so nothing private
-          can leak. For price-aware keeper math, use the{" "}
+          commissioners can see them early. To keep that promise, Miss Aje is
+          never given keeper prices, budgets, or picks, so nothing private can
+          leak. For price-aware keeper math, use the{" "}
           <span className="text-ink">Keepers</span> page and the{" "}
           <span className="text-ink">Trade Simulator</span> on the Trades page.
         </p>
@@ -122,7 +122,7 @@ export function AssistantChat() {
         <div className="mt-4 rounded-md border border-line bg-canvas p-4">
           <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-muted">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand" />
-            Assistant
+            Miss Aje
           </div>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
             {answer}

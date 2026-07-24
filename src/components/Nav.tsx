@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
 import { resolveTeam } from "@/lib/teams";
-import { NavLinks } from "./NavLinks";
+import { NavLinks, type NavLink } from "./NavLinks";
 import { Nameplate } from "./Nameplate";
 import { SignOutButton } from "./SignOutButton";
 import { NotificationBell } from "./NotificationBell";
@@ -14,34 +14,63 @@ export async function Nav() {
   const manager = await getCurrentManager(supabase);
   const team = manager ? resolveTeam(manager.display_name) : null;
 
-  const links = [
-    { href: "/keepers", label: "Keepers", match: "prefix" as const },
-    { href: "/rule-proposals", label: "2026 Rule Proposals", match: "prefix" as const },
-    { href: "/trades", label: "Trades", match: "prefix" as const },
-    { href: "/budget", label: "Auction Budget", match: "prefix" as const },
-    { href: "/fire-sale", label: "Fire Sale", match: "prefix" as const },
-    { href: "/assistant", label: "Ask AI", match: "prefix" as const },
+  const draftPrep: NavLink = {
+    href: "/draft-prep",
+    label: "Draft Prep",
+    children: [
+      { href: "/keepers", label: "Keepers", match: "prefix" },
+      { href: "/rule-proposals", label: "2026 Rule Proposals", match: "prefix" },
+    ],
+  };
+  const trades: NavLink = { href: "/trades", label: "Trades", match: "prefix" };
+  const budget: NavLink = { href: "/budget", label: "Auction Budget", match: "prefix" };
+  const fireSale: NavLink = { href: "/fire-sale", label: "Fire Sale", match: "prefix" };
+  const standings: NavLink = { href: "/standings", label: "Historical Standings", match: "prefix" };
+  const scheduleLuck: NavLink = { href: "/schedule-luck", label: "Schedule Luck", match: "prefix" };
+  const askMissAje: NavLink = { href: "/assistant", label: "Ask Miss Aje", match: "prefix" };
+  const archiveExtras: NavLink[] = [
+    { href: "/trash-talk", label: "Trash Talk", match: "prefix" },
+    { href: "/players", label: "Players", match: "prefix" },
+    { href: "/rules", label: "Rules", match: "prefix" },
+    { href: "/proposals", label: "Previous Rule Proposals", match: "prefix" },
+    { href: "/punishment", label: "Punishment Tracker", match: "prefix" },
+  ];
+  const commish: NavLink[] =
+    manager?.role === "commissioner"
+      ? [{ href: "/commish", label: "Commish", match: "prefix" }]
+      : [];
+
+  // Wide (xl+): Historical Standings and Schedule Luck sit top-level.
+  const linksWide: NavLink[] = [
+    draftPrep,
+    trades,
+    budget,
+    fireSale,
+    standings,
+    scheduleLuck,
+    askMissAje,
+    { href: "/archive", label: "More", children: archiveExtras },
+    ...commish,
+  ];
+
+  // Compact (lg–xl): those two fold into "More" so the bar doesn't overflow.
+  const linksCompact: NavLink[] = [
+    draftPrep,
+    trades,
+    budget,
+    fireSale,
+    askMissAje,
     {
       href: "/archive",
       label: "More",
-      children: [
-        { href: "/trash-talk", label: "Trash Talk", match: "prefix" as const },
-        { href: "/standings", label: "Historical Standings", match: "prefix" as const },
-        { href: "/schedule-luck", label: "Schedule Luck", match: "prefix" as const },
-        { href: "/players", label: "Players", match: "prefix" as const },
-        { href: "/rules", label: "Rules", match: "prefix" as const },
-        { href: "/proposals", label: "Previous Rule Proposals", match: "prefix" as const },
-        { href: "/punishment", label: "Punishment Tracker", match: "prefix" as const },
-      ],
+      children: [archiveExtras[0], standings, scheduleLuck, ...archiveExtras.slice(1)],
     },
-    ...(manager?.role === "commissioner"
-      ? [{ href: "/commish", label: "Commish", match: "prefix" as const }]
-      : []),
+    ...commish,
   ];
 
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-canvas/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-3">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-6 py-3">
         <div className="flex min-w-0 items-center gap-5">
           <Link href="/" className="flex shrink-0 items-center gap-2">
             <span aria-hidden className="h-5 w-1.5 rounded-sm bg-brand" />
@@ -49,7 +78,16 @@ export async function Nav() {
               Challenger Dynasty
             </span>
           </Link>
-          <NavLinks links={links} />
+          {/* Compact between lg and xl; wide at xl+. Below lg both hide and the
+              hamburger takes over. */}
+          <NavLinks
+            links={linksCompact}
+            className="hidden items-center gap-0.5 lg:flex xl:hidden"
+          />
+          <NavLinks
+            links={linksWide}
+            className="hidden items-center gap-0.5 xl:flex"
+          />
         </div>
         <div className="flex shrink-0 items-center gap-4">
           {/*
@@ -71,7 +109,7 @@ export async function Nav() {
           <span className="hidden lg:inline-flex">
             <SignOutButton />
           </span>
-          {manager && <MobileMenu links={links} team={team} />}
+          {manager && <MobileMenu links={linksWide} team={team} />}
         </div>
       </div>
     </header>

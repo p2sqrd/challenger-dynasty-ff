@@ -13,7 +13,14 @@ export interface NavLink {
   children?: NavLink[];
 }
 
-export function NavLinks({ links }: { links: NavLink[] }) {
+export function NavLinks({
+  links,
+  className = "hidden items-center gap-0.5 lg:flex",
+}: {
+  links: NavLink[];
+  /** Responsive wrapper classes — lets the Nav render compact/wide variants. */
+  className?: string;
+}) {
   const pathname = usePathname();
 
   function isActive(link: NavLink): boolean {
@@ -23,8 +30,9 @@ export function NavLinks({ links }: { links: NavLink[] }) {
   }
 
   return (
-    // Desktop only — below `lg` the links live in the hamburger menu.
-    <nav className="hidden items-center gap-0.5 lg:flex">
+    // Desktop only — below `lg` the links live in the hamburger menu. The Nav
+    // passes responsive classes to swap between compact and wide variants.
+    <nav className={className}>
       {links.map((link) =>
         link.children ? (
           <NavDropdown
