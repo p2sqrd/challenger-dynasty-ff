@@ -52,15 +52,31 @@ export default async function BudgetPage() {
     activeSeason.keeper_deadline != null &&
     new Date(activeSeason.keeper_deadline).getTime() <= now;
 
-  const [{ data: managers }, { data: ledger }] = await Promise.all([
-    supabase.from("managers").select("id, display_name"),
-    supabase
-      .from("budget_ledger")
-      .select("manager_id, amount, reason, source_id, created_at")
-      .eq("season_id", activeSeason.id)
-      .order("created_at", { ascending: true }),
-  ]);
+  const [{ data: managers }, { data: ledger }, { data: keepers }] =
+    await Promise.all([
+      supabase.from("managers").select("id, display_name"),
+      supabase
+        .from("budget_ledger")
+        .select("manager_id, amount, reason, source_id, created_at")
+        .eq("season_id", activeSeason.id)
+        .order("created_at", { ascending: true }),
+      // Keeper spend comes straight from each manager's keeper picks — there's
+      // no approval step or keeper ledger entry anymore. It only folds into the
+      // public budget once the deadline locks selections in.
+      supabase
+        .from("keepers")
+        .select("manager_id, new_price")
+        .eq("season_id", activeSeason.id),
+    ]);
   const nameById = new Map((managers ?? []).map((m) => [m.id, m.display_name]));
+
+  const keeperSpendByManager = new Map<string, number>();
+  for (const k of keepers ?? []) {
+    keeperSpendByManager.set(
+      k.manager_id,
+      (keeperSpendByManager.get(k.manager_id) ?? 0) + k.new_price
+    );
+  }
 
   // For trade chips backed by a real trade (source_id → a trades row), pull the
   // sides so the hover can show who got which players. Seeded spreadsheet
@@ -107,11 +123,11 @@ export default async function BudgetPage() {
           amount: e.amount,
           sides: e.source_id ? sidesByTradeId.get(e.source_id) ?? null : null,
         }));
-      const keeperSpend = entries
-        .filter((e) => e.reason === "keeper")
-        .reduce((s, e) => s + e.amount, 0);
-      // Non-keeper running budget (base + trades + anything else). Keeper cost
-      // only folds in once keepers are locked.
+      // What this manager has committed to keepers (positive dollars). Only
+      // folds into the public budget once keepers are locked.
+      const keeperSpend = keeperSpendByManager.get(m.id) ?? 0;
+      // Running budget from the ledger (base + trades). Keepers are tracked
+      // separately in the keepers table, never the ledger.
       const nonKeeper = entries
         .filter((e) => e.reason !== "keeper")
         .reduce((s, e) => s + e.amount, 0);
@@ -121,7 +137,7 @@ export default async function BudgetPage() {
         base,
         trades,
         keeperSpend,
-        current: keepersLocked ? nonKeeper + keeperSpend : nonKeeper,
+        current: keepersLocked ? nonKeeper - keeperSpend : nonKeeper,
         hasEntries: entries.length > 0,
       };
     })

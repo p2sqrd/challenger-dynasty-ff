@@ -5,10 +5,16 @@ import { Nameplate } from "@/components/Nameplate";
 
 const REASON_LABELS: Record<string, string> = {
   trade: "Trade",
-  keeper: "Keeper",
   starting_budget: "Starting budget",
   other: "Other",
 };
+
+interface LedgerRow {
+  id: string;
+  createdAt: string;
+  label: string;
+  amount: number;
+}
 
 export default async function BudgetPage({
   params,
@@ -33,7 +39,7 @@ export default async function BudgetPage({
   // number on the Keepers page until then.
   const { data: activeSeason } = await supabase
     .from("seasons")
-    .select("keeper_deadline")
+    .select("id, keeper_deadline")
     .eq("status", "active")
     .single();
   // Server component: "now" per request is intended.
@@ -49,11 +55,36 @@ export default async function BudgetPage({
     .eq("manager_id", managerId)
     .order("created_at", { ascending: false });
 
-  const entries = keepersLocked
-    ? allEntries ?? []
-    : (allEntries ?? []).filter((e) => e.reason !== "keeper");
+  // Keepers live in their own table now (no approval, no ledger entry). Once
+  // locked, fold each kept player in as a deduction line.
+  const { data: keepers } =
+    keepersLocked && activeSeason
+      ? await supabase
+          .from("keepers")
+          .select("id, player_name, new_price, created_at")
+          .eq("manager_id", managerId)
+          .eq("season_id", activeSeason.id)
+      : { data: [] };
 
-  const balance = entries.reduce((sum, e) => sum + e.amount, 0);
+  const rows: LedgerRow[] = [
+    // Any legacy keeper ledger rows are ignored — keepers come from the table.
+    ...(allEntries ?? [])
+      .filter((e) => e.reason !== "keeper")
+      .map((e) => ({
+        id: e.id,
+        createdAt: e.created_at,
+        label: REASON_LABELS[e.reason] ?? e.reason,
+        amount: e.amount,
+      })),
+    ...(keepers ?? []).map((k) => ({
+      id: `keeper-${k.id}`,
+      createdAt: k.created_at,
+      label: `Keeper · ${k.player_name}`,
+      amount: -k.new_price,
+    })),
+  ].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+
+  const balance = rows.reduce((sum, r) => sum + r.amount, 0);
 
   return (
     <div>
@@ -89,19 +120,17 @@ export default async function BudgetPage({
             </tr>
           </thead>
           <tbody>
-            {(entries ?? []).map((entry) => {
-              const positive = entry.amount >= 0;
+            {rows.map((row) => {
+              const positive = row.amount >= 0;
               return (
                 <tr
-                  key={entry.id}
+                  key={row.id}
                   className="border-b border-line last:border-0"
                 >
                   <td className="tabular py-3 pl-4 pr-4 text-muted">
-                    {new Date(entry.created_at).toLocaleDateString()}
+                    {new Date(row.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="py-3 pr-4 text-ink">
-                    {REASON_LABELS[entry.reason] ?? entry.reason}
-                  </td>
+                  <td className="py-3 pr-4 text-ink">{row.label}</td>
                   <td
                     className={`tabular py-3 pr-4 text-right ${
                       positive ? "text-ink" : "text-muted"
@@ -109,16 +138,16 @@ export default async function BudgetPage({
                   >
                     <span className="mr-1 text-xs">{positive ? "▲" : "▼"}</span>
                     {positive ? "+" : "−"}
-                    {Math.abs(entry.amount)}
+                    {Math.abs(row.amount)}
                   </td>
                 </tr>
               );
             })}
-            {(entries ?? []).length === 0 && (
+            {rows.length === 0 && (
               <tr>
                 <td colSpan={3} className="py-8 text-center text-sm text-muted">
                   No ledger entries yet — cash moves show up here after a trade
-                  or keeper is approved.
+                  is approved.
                 </td>
               </tr>
             )}
