@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentManager } from "@/lib/managers";
 import { getManagerAuctionBudget } from "@/lib/budget";
 import { maxBidFor } from "@/lib/fire-sale";
+import { notifyManager } from "@/lib/notify";
 
 export async function POST(
   request: Request,
@@ -96,6 +97,15 @@ export async function POST(
         .eq("id", id);
     }
   }
+
+  // Tell the seller a bid landed (in-app + email). We deliberately omit the
+  // amount and bidder so sealed bids stay sealed — they see the details on the
+  // Fire Sale page when they resolve it.
+  await notifyManager(admin, sale.seller_id, {
+    title: "New bid on your Fire Sale",
+    body: `Someone just bid on ${sale.player_name}. You can accept an offer early or let bidding run.`,
+    link: sale.mode === "public" ? `/fire-sale/${id}` : `/fire-sale#sale-${id}`,
+  });
 
   return NextResponse.json({ ok: true });
 }

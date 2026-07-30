@@ -171,6 +171,11 @@ export default async function FireSalePage() {
           const myBid = manager
             ? myBids.find((b) => b.bidder_id === manager.id)?.amount ?? null
             : null;
+          const resolveBids = myBids.map((b) => ({
+            bidderId: b.bidder_id,
+            bidderName: nameById.get(b.bidder_id) ?? "—",
+            amount: b.amount,
+          }));
           const cap =
             manager && !isSeller
               ? maxBidFor({
@@ -219,38 +224,46 @@ export default async function FireSalePage() {
 
               <div className="mt-3 border-t border-line pt-3">
                 {closed && isSeller ? (
-                  <FireSaleResolve
-                    saleId={sale.id}
-                    bids={myBids.map((b) => ({
-                      bidderId: b.bidder_id,
-                      bidderName: nameById.get(b.bidder_id) ?? "—",
-                      amount: b.amount,
-                    }))}
-                  />
+                  <FireSaleResolve saleId={sale.id} bids={resolveBids} />
                 ) : closed && !isSeller ? (
                   <p className="text-sm text-muted">
                     Bidding closed — waiting on{" "}
                     {nameById.get(sale.seller_id) ?? "the seller"} to pick a
                     winner.{myBid !== null ? ` Your bid: $${myBid}.` : ""}
                   </p>
-                ) : sale.mode === "public" ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <Link
-                      href={`/fire-sale/${sale.id}`}
-                      className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-[var(--color-brand-ink)]"
-                    >
-                      Enter live auction →
-                    </Link>
-                    {isSeller && <FireSaleCancelButton saleId={sale.id} />}
-                  </div>
                 ) : isSeller ? (
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted">
-                      Your Fire Sale · {myBids.length} sealed bid
-                      {myBids.length === 1 ? "" : "s"} in
-                    </p>
-                    <FireSaleCancelButton saleId={sale.id} />
+                  // Your own active sale (either mode): accept an offer early if
+                  // one's in, or manage the sale.
+                  <div className="space-y-3">
+                    {resolveBids.length > 0 && (
+                      <FireSaleResolve early saleId={sale.id} bids={resolveBids} />
+                    )}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs text-muted">
+                        {sale.mode === "public" ? "Live auction" : "Sealed Fire Sale"}{" "}
+                        · {myBids.length} bid{myBids.length === 1 ? "" : "s"} in ·
+                        closes {when(sale.deadline)}
+                      </p>
+                      <div className="flex items-center gap-3">
+                        {sale.mode === "public" && (
+                          <Link
+                            href={`/fire-sale/${sale.id}`}
+                            className="text-sm text-brand hover:underline"
+                          >
+                            Live room →
+                          </Link>
+                        )}
+                        <FireSaleCancelButton saleId={sale.id} />
+                      </div>
+                    </div>
                   </div>
+                ) : sale.mode === "public" ? (
+                  <Link
+                    href={`/fire-sale/${sale.id}`}
+                    className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-[var(--color-brand-ink)]"
+                  >
+                    Enter live auction →
+                  </Link>
                 ) : manager ? (
                   <FireSaleBidForm
                     saleId={sale.id}

@@ -12,9 +12,13 @@ interface Bid {
 export function FireSaleResolve({
   saleId,
   bids,
+  early = false,
 }: {
   saleId: string;
   bids: Bid[];
+  /** True while the sale is still active (seller closing early). Hides the
+   *  "reject all" path — Cancel handles a no-sale exit before the deadline. */
+  early?: boolean;
 }) {
   const router = useRouter();
   const sorted = [...bids].sort((a, b) => b.amount - a.amount);
@@ -62,7 +66,8 @@ export function FireSaleResolve({
   return (
     <div>
       <p className="mb-2 text-xs uppercase tracking-wide text-muted">
-        Sealed bids {topBidders.length > 1 ? "· tie at the top — you pick" : ""}
+        {early ? "Offers in — accept early or let it run" : "Sealed bids"}
+        {topBidders.length > 1 ? " · tie at the top — you pick" : ""}
       </p>
       <ul className="divide-y divide-line rounded-md border border-line">
         {sorted.map((b) => {
@@ -97,15 +102,17 @@ export function FireSaleResolve({
           disabled={busy || !winnerId}
           className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
         >
-          Accept &amp; send to commissioner
+          {early ? "Accept & close early" : "Accept & send to commissioner"}
         </button>
-        <button
-          onClick={() => post("reject")}
-          disabled={busy}
-          className="rounded-md border border-line px-3 py-2 text-sm text-ink hover:bg-surface-2 disabled:opacity-40"
-        >
-          Reject all
-        </button>
+        {!early && (
+          <button
+            onClick={() => post("reject")}
+            disabled={busy}
+            className="rounded-md border border-line px-3 py-2 text-sm text-ink hover:bg-surface-2 disabled:opacity-40"
+          >
+            Reject all
+          </button>
+        )}
       </div>
       {error && <p className="mt-2 text-sm text-rejected">{error}</p>}
     </div>
