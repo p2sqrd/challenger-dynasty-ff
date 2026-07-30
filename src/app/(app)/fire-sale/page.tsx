@@ -14,6 +14,7 @@ import { FireSaleForm } from "@/components/FireSaleForm";
 import { FireSaleBidForm } from "@/components/FireSaleBidForm";
 import { FireSaleResolve } from "@/components/FireSaleResolve";
 import { FireSaleCancelButton } from "@/components/FireSaleCancelButton";
+import { FireSaleEndButton } from "@/components/FireSaleEndButton";
 import type { FireSaleStatus } from "@/types/database";
 
 interface Sale {
@@ -232,29 +233,29 @@ export default async function FireSalePage() {
                     winner.{myBid !== null ? ` Your bid: $${myBid}.` : ""}
                   </p>
                 ) : isSeller ? (
-                  // Your own active sale (either mode): accept an offer early if
-                  // one's in, or manage the sale.
-                  <div className="space-y-3">
-                    {resolveBids.length > 0 && (
-                      <FireSaleResolve early saleId={sale.id} bids={resolveBids} />
-                    )}
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-xs text-muted">
-                        {sale.mode === "public" ? "Live auction" : "Sealed Fire Sale"}{" "}
-                        · {myBids.length} bid{myBids.length === 1 ? "" : "s"} in ·
-                        closes {when(sale.deadline)}
-                      </p>
-                      <div className="flex items-center gap-3">
-                        {sale.mode === "public" && (
-                          <Link
-                            href={`/fire-sale/${sale.id}`}
-                            className="text-sm text-brand hover:underline"
-                          >
-                            Live room →
-                          </Link>
-                        )}
-                        <FireSaleCancelButton saleId={sale.id} />
-                      </div>
+                  // Your own open sale. Bids stay sealed until you end it — then
+                  // the offers unseal and you pick a winner (or reject all). End
+                  // early to take an offer, or let it ride to the deadline.
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-muted">
+                      {sale.mode === "public" ? "Live auction" : "Sealed Fire Sale"}{" "}
+                      · {myBids.length} bid{myBids.length === 1 ? "" : "s"} in ·
+                      closes {when(sale.deadline)}
+                      {sale.mode === "private" ? " · sealed until you end it" : ""}
+                    </p>
+                    <div className="flex items-center gap-3">
+                      {sale.mode === "public" && (
+                        <Link
+                          href={`/fire-sale/${sale.id}`}
+                          className="text-sm text-brand hover:underline"
+                        >
+                          Live room →
+                        </Link>
+                      )}
+                      {myBids.length > 0 && (
+                        <FireSaleEndButton saleId={sale.id} />
+                      )}
+                      <FireSaleCancelButton saleId={sale.id} />
                     </div>
                   </div>
                 ) : sale.mode === "public" ? (

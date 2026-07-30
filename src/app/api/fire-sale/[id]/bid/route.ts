@@ -63,11 +63,13 @@ export async function POST(
   }
 
   // Public (live) auctions are ascending — you must beat the current high bid.
+  let isFirstBid = true;
   if (sale.mode === "public") {
     const { data: existing } = await admin
       .from("fire_sale_bids")
       .select("amount")
       .eq("fire_sale_id", id);
+    isFirstBid = (existing ?? []).length === 0;
     const high = Math.max(0, ...(existing ?? []).map((b) => b.amount));
     if ((amount as number) <= high) {
       return NextResponse.json(
@@ -98,14 +100,21 @@ export async function POST(
     }
   }
 
-  // Tell the seller a bid landed (in-app + email). We deliberately omit the
-  // amount and bidder so sealed bids stay sealed — they see the details on the
-  // Fire Sale page when they resolve it.
-  await notifyManager(admin, sale.seller_id, {
-    title: "New bid on your Fire Sale",
-    body: `Someone just bid on ${sale.player_name}. You can accept an offer early or let bidding run.`,
-    link: sale.mode === "public" ? `/fire-sale/${id}` : `/fire-sale#sale-${id}`,
-  });
+  // Tell the seller a bid landed (in-app + email). Sealed (private) auctions
+  // notify on every bid — they're infrequent, and we deliberately omit the
+  // amount and bidder so bids stay sealed until the seller ends the auction.
+  // Live (public) auctions only notify on the FIRST bid, so a hot ascending
+  // auction doesn't spam the seller's inbox.
+  if (sale.mode === "private" || isFirstBid) {
+    await notifyManager(admin, sale.seller_id, {
+      title: "New bid on your Fire Sale",
+      body:
+        sale.mode === "public"
+          ? `Your live auction on ${sale.player_name} just got its first bid. Jump into the live room to watch it play out.`
+          : `Someone just bid on ${sale.player_name}. Bids stay sealed until you end the auction — then you can see the offers and pick a winner.`,
+      link: sale.mode === "public" ? `/fire-sale/${id}` : `/fire-sale#sale-${id}`,
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }
