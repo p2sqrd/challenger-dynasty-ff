@@ -6,11 +6,12 @@ import { getManagerAuctionBudget } from "@/lib/budget";
 import { KEEPER_BUDGET_FLOOR, KEEPER_BUDGET_CEIL } from "@/lib/fire-sale";
 
 /**
- * Seller accepts a winning bid once bidding has closed. The winner must be one
- * of the highest bidders (ties are the seller's choice). We re-check the
- * $125/$275 rule against current budgets, then create a trade (player ->
- * winner, cash -> seller) in `pending_approval` for the commissioner to
- * approve — the same pipeline as any other trade.
+ * Seller accepts a winning bid. Allowed any time while the sale is active — the
+ * seller can close early to take an offer that's already in, or wait for the
+ * deadline. The winner must be one of the highest bidders (ties are the
+ * seller's choice). We re-check the $125/$275 rule against current budgets,
+ * then create a trade (player -> winner, cash -> seller) in `pending_approval`
+ * for the commissioner to approve — the same pipeline as any other trade.
  */
 export async function POST(
   request: Request,
@@ -44,12 +45,6 @@ export async function POST(
   }
   if (sale.status !== "active") {
     return NextResponse.json({ error: "Already resolved." }, { status: 400 });
-  }
-  if (new Date(sale.deadline).getTime() > Date.now()) {
-    return NextResponse.json(
-      { error: "Bidding hasn't closed yet." },
-      { status: 400 }
-    );
   }
 
   const { data: bids } = await admin

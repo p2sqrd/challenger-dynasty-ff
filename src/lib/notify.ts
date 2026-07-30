@@ -55,6 +55,28 @@ export async function notifyAll(
   }
 }
 
+/**
+ * Notify a single manager (in-app + best-effort email). For targeted events
+ * like "someone bid on your Fire Sale". Never throws.
+ */
+export async function notifyManager(
+  admin: SupabaseClient<Database>,
+  managerId: string,
+  input: NotifyInput
+): Promise<void> {
+  try {
+    await admin.from("notifications").insert({
+      manager_id: managerId,
+      title: input.title,
+      body: input.body ?? null,
+      link: input.link ?? null,
+    });
+    await sendEmail(admin, [managerId], input);
+  } catch {
+    // Best-effort: swallow so the triggering action still succeeds.
+  }
+}
+
 async function sendEmail(
   admin: SupabaseClient<Database>,
   recipientIds: string[],

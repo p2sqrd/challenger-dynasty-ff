@@ -62,7 +62,8 @@ export function FireSaleResolve({
   return (
     <div>
       <p className="mb-2 text-xs uppercase tracking-wide text-muted">
-        Sealed bids {topBidders.length > 1 ? "· tie at the top — you pick" : ""}
+        Bids
+        {topBidders.length > 1 ? " · tie at the top — you pick" : ""}
       </p>
       <ul className="divide-y divide-line rounded-md border border-line">
         {sorted.map((b) => {
