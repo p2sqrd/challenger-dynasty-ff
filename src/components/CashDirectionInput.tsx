@@ -26,12 +26,14 @@ export function CashDirectionInput({
   sendLabel: string;
   inputId?: string;
 }) {
-  const seg = (active: boolean) =>
-    `rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-      active
-        ? "bg-brand text-[var(--color-brand-ink)]"
-        : "text-muted hover:text-ink"
-    }`;
+  // Receiving cash is good for your budget (green); sending it costs you (red).
+  const seg = (active: boolean, tone: "receive" | "send") => {
+    if (!active) {
+      return "rounded px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:text-ink";
+    }
+    const bg = tone === "receive" ? "bg-approved" : "bg-rejected";
+    return `rounded px-2.5 py-1 text-xs font-medium text-[var(--color-brand-ink)] transition-colors ${bg}`;
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -40,7 +42,7 @@ export function CashDirectionInput({
           type="button"
           onClick={() => onDirectionChange("receive")}
           aria-pressed={direction === "receive"}
-          className={seg(direction === "receive")}
+          className={seg(direction === "receive", "receive")}
         >
           {receiveLabel}
         </button>
@@ -48,7 +50,7 @@ export function CashDirectionInput({
           type="button"
           onClick={() => onDirectionChange("send")}
           aria-pressed={direction === "send"}
-          className={seg(direction === "send")}
+          className={seg(direction === "send", "send")}
         >
           {sendLabel}
         </button>
