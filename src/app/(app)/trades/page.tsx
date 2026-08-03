@@ -166,7 +166,7 @@ export default async function ProcessTradesPage() {
   return (
     <div>
       <PageHeader
-        title={`Process Trades · ${activeSeason.year}`}
+        title={`Process Trade · ${activeSeason.year}`}
         subtitle="New trades sync from Sleeper automatically every few hours. Just made one? Hit Sync from Sleeper to pull it in now."
         right={manager ? <SyncTradesButton /> : undefined}
       />
