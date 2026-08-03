@@ -190,16 +190,11 @@ export function TradeSimulator({
 
   if (!open) {
     return (
-      <section className="mt-12">
-        <h2 className="nameplate-type text-lg text-ink">Trade Simulator</h2>
-        <p className="mt-2 max-w-2xl text-sm text-muted">
-          A private what-if tool — pick a partner, move players and cash, and see
-          how your roster, budget, and keepers would look. Nothing is saved.
-        </p>
+      <section>
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="mt-3 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-[var(--color-brand-ink)]"
+          className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-[var(--color-brand-ink)]"
         >
           Start a simulation
         </button>
@@ -208,9 +203,8 @@ export function TradeSimulator({
   }
 
   return (
-    <section className="mt-12">
-      <div className="flex items-center justify-between">
-        <h2 className="nameplate-type text-lg text-ink">Trade Simulator</h2>
+    <section>
+      <div className="flex items-center justify-end">
         <button
           type="button"
           onClick={() => {
