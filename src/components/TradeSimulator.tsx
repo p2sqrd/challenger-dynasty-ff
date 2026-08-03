@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { validateKeeperRoster, ROSTER_SIZE } from "@/lib/rules/budget-validation";
+import { CashDirectionInput, type CashDirection } from "./CashDirectionInput";
 
 export interface SimPlayer {
   playerId: string;
@@ -132,6 +133,7 @@ export function TradeSimulator({
   const [send, setSend] = useState<Set<string>>(new Set());
   const [receive, setReceive] = useState<Set<string>>(new Set());
   const [cash, setCash] = useState("0");
+  const [cashDir, setCashDir] = useState<CashDirection>("receive");
   const [keepers, setKeepers] = useState<Set<string>>(new Set());
   const [partnerKeepers, setPartnerKeepers] = useState<Set<string>>(new Set());
 
@@ -156,6 +158,7 @@ export function TradeSimulator({
     setSend(new Set());
     setReceive(new Set());
     setCash("0");
+    setCashDir("receive");
     setKeepers(new Set());
     setPartnerKeepers(new Set());
   }
@@ -179,9 +182,13 @@ export function TradeSimulator({
     return [...kept, ...gained].sort((a, b) => a.name.localeCompare(b.name));
   }, [partner, receive, me.roster, send]);
 
-  // Cash is entered from your point of view: positive means you *receive* it
-  // (your budget goes up, the partner's goes down), negative means you send it.
-  const cashNum = Number.isFinite(Number(cash)) ? Math.trunc(Number(cash)) : 0;
+  // Cash is entered as an always-positive amount plus a "receives / sends"
+  // direction. Receiving lifts your budget and drops the partner's; sending
+  // does the reverse.
+  const cashMag = Number.isFinite(Number(cash))
+    ? Math.max(0, Math.trunc(Number(cash)))
+    : 0;
+  const cashNum = cashDir === "receive" ? cashMag : -cashMag;
   const newBudget = me.auctionBudget + cashNum;
   const partnerNewBudget = partner ? partner.auctionBudget - cashNum : 0;
 
@@ -292,15 +299,17 @@ export function TradeSimulator({
                   </div>
                 </div>
               </div>
-              <label className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-muted">Cash you receive (negative if you send)</span>
-                <input
-                  type="number"
-                  value={cash}
-                  onChange={(e) => setCash(e.target.value)}
-                  className="tabular w-24 rounded border border-line bg-canvas px-2 py-1 text-ink"
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-muted">Cash</span>
+                <CashDirectionInput
+                  amount={cash}
+                  onAmountChange={setCash}
+                  direction={cashDir}
+                  onDirectionChange={setCashDir}
+                  receiveLabel={partner ? `Receives from ${partner.name}` : "Receives"}
+                  sendLabel={partner ? `Sends to ${partner.name}` : "Sends"}
                 />
-              </label>
+              </div>
             </div>
 
             {/* 3. Result */}

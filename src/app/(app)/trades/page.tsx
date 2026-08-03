@@ -3,11 +3,9 @@ import { getCurrentManager } from "@/lib/managers";
 import { detectTradeback, type PlayerTradeEvent } from "@/lib/rules/tradeback";
 import { loadTradesContext } from "@/lib/trades/load";
 import { PageHeader } from "@/components/PageHeader";
-import { TradeSidesView } from "@/components/TradeSides";
-import { TradeCashForm } from "@/components/TradeCashForm";
-import { TradeApprovalQueue } from "@/components/TradeApprovalQueue";
 import { ManualTradeForm } from "@/components/ManualTradeForm";
 import { SyncTradesButton } from "@/components/SyncTradesButton";
+import { ActiveTradeCard, type TradeAction } from "@/components/ActiveTradeCard";
 
 interface TradeSideRowNoCash {
   trade_id: string;
@@ -38,34 +36,37 @@ export default async function ProcessTradesPage() {
     viewSides,
   } = await loadTradesContext(supabase, activeSeason.id);
 
-  // A pending_cash trade needs the cash entered by *either* party — the first
-  // one to submit finalizes it and sends it to the commissioner — so show the
-  // form to anyone who's a party to it.
-  const needsMyCash = manager
-    ? allTrades.filter((t) => {
-        if (t.status !== "pending_cash") return false;
-        return (sidesByTradeId.get(t.id) ?? []).some(
-          (s) => s.manager_id === manager.id
-        );
-      })
-    : [];
-
-  const pendingApproval = allTrades.filter(
-    (t) => t.status === "pending_approval"
+  // Everything not yet finalized lives in one list. History (approved /
+  // rejected) has its own page.
+  const active = allTrades.filter(
+    (t) => t.status === "pending_cash" || t.status === "pending_approval"
   );
+  const pendingApproval = active.filter((t) => t.status === "pending_approval");
 
-  // Everyone can see mid-flight trades (awaiting cash or approval) so a synced
-  // trade is visible league-wide right away — not just to the two managers in
-  // it. We drop the ones already surfaced to this viewer as an action above
-  // (their own cash-entry forms, and the commissioner's approval queue) to
-  // avoid showing the same trade twice.
-  const needsMyCashIds = new Set(needsMyCash.map((t) => t.id));
-  const inProgress = allTrades.filter(
-    (t) =>
-      (t.status === "pending_cash" || t.status === "pending_approval") &&
-      !needsMyCashIds.has(t.id) &&
-      !(manager?.role === "commissioner" && t.status === "pending_approval")
-  );
+  // What can *this* viewer do with a given trade? The manager who owes cash
+  // enters it; the commissioner approves; everyone else just watches.
+  function actionFor(t: (typeof active)[number]): TradeAction {
+    if (
+      t.status === "pending_cash" &&
+      manager &&
+      (sidesByTradeId.get(t.id) ?? []).some((s) => s.manager_id === manager.id)
+    ) {
+      return "enter_cash";
+    }
+    if (t.status === "pending_approval" && manager?.role === "commissioner") {
+      return "approve";
+    }
+    return "none";
+  }
+
+  // Trades that need something from you float to the top; the rest keep their
+  // newest-first order (loadTradesContext already sorts by created_at desc).
+  const cards = active
+    .map((t) => ({ trade: t, action: actionFor(t) }))
+    .sort((a, b) => {
+      const rank = (x: TradeAction) => (x === "none" ? 1 : 0);
+      return rank(a.action) - rank(b.action);
+    });
 
   // Tradeback warnings only cover straightforward two-team trades — with
   // three or more teams involved, Sleeper's data doesn't tell us which side
@@ -74,7 +75,7 @@ export default async function ProcessTradesPage() {
   // the commissioner, never a block, so under-warning here is an
   // acceptable tradeoff for not over-warning on bad data.
   let tradebackWarnings = new Map<string, string[]>();
-  if (pendingApproval.length > 0) {
+  if (manager?.role === "commissioner" && pendingApproval.length > 0) {
     const { data: approvedTrades } = await supabase
       .from("trades")
       .select("id, approved_at, created_at")
@@ -166,79 +167,38 @@ export default async function ProcessTradesPage() {
   return (
     <div>
       <PageHeader
-        title={`Process Trade · ${activeSeason.year}`}
-        subtitle="New trades sync from Sleeper automatically every few hours. Just made one? Hit Sync from Sleeper to pull it in now."
+        title="Process Trade"
+        subtitle="Trades don't sync automatically. After you make one on Sleeper, hit Sync from Sleeper to pull it in — then enter any cash that was part of the deal."
         right={manager ? <SyncTradesButton /> : undefined}
       />
 
-      {manager && (
-        <section>
-          <h2 className="nameplate-type text-lg text-ink">
-            Needs your cash entry
-          </h2>
-          {needsMyCash.length === 0 ? (
-            <p className="mt-2 text-sm text-muted">Nothing pending.</p>
-          ) : (
-            <div className="mt-3 space-y-4">
-              {needsMyCash.map((t) => (
-                <TradeCashForm
-                  key={t.id}
-                  tradeId={t.id}
-                  myManagerId={manager.id}
-                  sides={viewSides(t.id)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
       {manager?.role === "commissioner" && (
-        <section className="mt-12">
-          <h2 className="nameplate-type text-lg text-ink">Pending approval</h2>
-          <div className="mt-3">
-            <ManualTradeForm
-              seasonId={activeSeason.id}
-              managers={managers}
-            />
-          </div>
-          <TradeApprovalQueue
-            trades={pendingApproval.map((t) => ({
-              id: t.id,
-              sides: viewSides(t.id),
-              warnings: tradebackWarnings.get(t.id) ?? [],
-            }))}
-          />
-        </section>
+        <div className="mb-6">
+          <ManualTradeForm seasonId={activeSeason.id} managers={managers} />
+        </div>
       )}
 
-      <section className="mt-12">
-        <h2 className="nameplate-type text-lg text-ink">In progress</h2>
-        {inProgress.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">No trades in progress.</p>
-        ) : (
-          <div className="mt-3 space-y-4">
-            {inProgress.map((t) => (
-              <div
-                key={t.id}
-                className="rounded-md border border-line bg-surface p-5"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="rounded-full border border-line px-2 py-0.5 text-xs text-pending">
-                    {t.status === "pending_cash"
-                      ? "Awaiting cash"
-                      : "Awaiting commissioner approval"}
-                  </span>
-                  <span className="tabular text-xs text-muted">
-                    {new Date(t.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-                <TradeSidesView sides={viewSides(t.id)} />
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      {cards.length === 0 ? (
+        <p className="text-sm text-muted">
+          No trades in flight. Make one on Sleeper, then hit Sync from Sleeper to
+          pull it in.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {cards.map(({ trade, action }) => (
+            <ActiveTradeCard
+              key={trade.id}
+              tradeId={trade.id}
+              status={trade.status as "pending_cash" | "pending_approval"}
+              createdAt={trade.created_at}
+              sides={viewSides(trade.id)}
+              action={action}
+              myManagerId={manager?.id}
+              warnings={tradebackWarnings.get(trade.id) ?? []}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
