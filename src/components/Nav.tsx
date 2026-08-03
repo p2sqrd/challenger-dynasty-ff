@@ -22,7 +22,17 @@ export async function Nav() {
       { href: "/rule-proposals", label: "2026 Rule Proposals", match: "prefix" },
     ],
   };
-  const trades: NavLink = { href: "/trades", label: "Trades", match: "prefix" };
+  const trades: NavLink = {
+    href: "/trades",
+    label: "Trades",
+    children: [
+      // "Process Trades" is /trades itself, so match it exactly — otherwise it
+      // would light up on every /trades/* sub-page too.
+      { href: "/trades", label: "Process Trades", match: "exact" },
+      { href: "/trades/simulator", label: "Trade Simulator", match: "prefix" },
+      { href: "/trades/history", label: "Trade History", match: "prefix" },
+    ],
+  };
   const budget: NavLink = { href: "/budget", label: "Auction Budget", match: "prefix" };
   const fireSale: NavLink = { href: "/fire-sale", label: "Fire Sale", match: "prefix" };
   const standings: NavLink = { href: "/standings", label: "Historical Standings", match: "prefix" };
@@ -30,6 +40,8 @@ export async function Nav() {
   const askMissAje: NavLink = { href: "/assistant", label: "Ask Miss Aje", match: "prefix" };
   const archiveExtras: NavLink[] = [
     { href: "/trash-talk", label: "Trash Talk", match: "prefix" },
+    standings,
+    scheduleLuck,
     { href: "/players", label: "Players", match: "prefix" },
     { href: "/rules", label: "Rules", match: "prefix" },
     { href: "/proposals", label: "Previous Rule Proposals", match: "prefix" },
@@ -40,31 +52,13 @@ export async function Nav() {
       ? [{ href: "/commish", label: "Commish", match: "prefix" }]
       : [];
 
-  // Wide (xl+): Historical Standings and Schedule Luck sit top-level.
-  const linksWide: NavLink[] = [
+  const links: NavLink[] = [
     draftPrep,
     trades,
     budget,
     fireSale,
-    standings,
-    scheduleLuck,
     askMissAje,
     { href: "/archive", label: "More", children: archiveExtras },
-    ...commish,
-  ];
-
-  // Compact (lg–xl): those two fold into "More" so the bar doesn't overflow.
-  const linksCompact: NavLink[] = [
-    draftPrep,
-    trades,
-    budget,
-    fireSale,
-    askMissAje,
-    {
-      href: "/archive",
-      label: "More",
-      children: [archiveExtras[0], standings, scheduleLuck, ...archiveExtras.slice(1)],
-    },
     ...commish,
   ];
 
@@ -78,15 +72,10 @@ export async function Nav() {
               Challenger Dynasty
             </span>
           </Link>
-          {/* Compact between lg and xl; wide at xl+. Below lg both hide and the
-              hamburger takes over. */}
+          {/* Desktop nav from lg up; below lg the hamburger takes over. */}
           <NavLinks
-            links={linksCompact}
-            className="hidden items-center gap-0.5 lg:flex xl:hidden"
-          />
-          <NavLinks
-            links={linksWide}
-            className="hidden items-center gap-0.5 xl:flex"
+            links={links}
+            className="hidden items-center gap-0.5 lg:flex"
           />
         </div>
         <div className="flex shrink-0 items-center gap-4">
@@ -109,7 +98,7 @@ export async function Nav() {
           <span className="hidden lg:inline-flex">
             <SignOutButton />
           </span>
-          {manager && <MobileMenu links={linksWide} team={team} />}
+          {manager && <MobileMenu links={links} team={team} />}
         </div>
       </div>
     </header>

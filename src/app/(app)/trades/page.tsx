@@ -1,26 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
-import { getPlayerNames } from "@/lib/players";
-import { getManagerAuctionBudget } from "@/lib/budget";
-import { getKeeperPrices } from "@/lib/keeper-price";
-import { getLeagueRosters } from "@/lib/sleeper/client";
-import { resolveTeam } from "@/lib/teams";
 import { detectTradeback, type PlayerTradeEvent } from "@/lib/rules/tradeback";
+import { loadTradesContext } from "@/lib/trades/load";
 import { PageHeader } from "@/components/PageHeader";
-import { StatusBadge } from "@/components/StatusBadge";
 import { TradeSidesView } from "@/components/TradeSides";
 import { TradeCashForm } from "@/components/TradeCashForm";
 import { TradeApprovalQueue } from "@/components/TradeApprovalQueue";
 import { ManualTradeForm } from "@/components/ManualTradeForm";
 import { SyncTradesButton } from "@/components/SyncTradesButton";
-import { TradeSimulator, type SimRoster } from "@/components/TradeSimulator";
-
-interface TradeSideRow {
-  trade_id: string;
-  manager_id: string;
-  players_received: string[];
-  cash_amount: number | null;
-}
 
 interface TradeSideRowNoCash {
   trade_id: string;
@@ -28,7 +15,7 @@ interface TradeSideRowNoCash {
   players_received: string[];
 }
 
-export default async function TradesPage() {
+export default async function ProcessTradesPage() {
   const supabase = await createClient();
   const manager = await getCurrentManager(supabase);
 
@@ -42,40 +29,15 @@ export default async function TradesPage() {
     return <p className="text-sm text-neutral-500">No active season.</p>;
   }
 
-  const { data: managers } = await supabase
-    .from("managers")
-    .select("id, display_name, sleeper_roster_id");
-  const nameById = new Map((managers ?? []).map((m) => [m.id, m.display_name]));
+  const {
+    managers,
+    trades: allTrades,
+    sidesByTradeId,
+    nameById,
+    playerName,
+    viewSides,
+  } = await loadTradesContext(supabase, activeSeason.id);
 
-  const { data: trades } = await supabase
-    .from("trades")
-    .select("id, status, rejection_reason, created_at, approved_at")
-    .eq("season_id", activeSeason.id)
-    .order("created_at", { ascending: false });
-
-  const tradeIds = (trades ?? []).map((t) => t.id);
-  const { data: sides } =
-    tradeIds.length > 0
-      ? await supabase
-          .from("trade_sides")
-          .select("trade_id, manager_id, players_received, cash_amount")
-          .in("trade_id", tradeIds)
-      : { data: [] as TradeSideRow[] };
-
-  const sidesByTradeId = new Map<string, TradeSideRow[]>();
-  for (const side of sides ?? []) {
-    const list = sidesByTradeId.get(side.trade_id) ?? [];
-    list.push(side);
-    sidesByTradeId.set(side.trade_id, list);
-  }
-
-  const nameMap = await getPlayerNames(
-    supabase,
-    (sides ?? []).flatMap((s) => s.players_received)
-  );
-  const playerName = (playerId: string) => nameMap.get(playerId) ?? playerId;
-
-  const allTrades = trades ?? [];
   // A pending_cash trade needs the cash entered by *either* party — the first
   // one to submit finalizes it and sends it to the commissioner — so show the
   // form to anyone who's a party to it.
@@ -88,75 +50,9 @@ export default async function TradesPage() {
       })
     : [];
 
-  const pendingApproval = allTrades.filter((t) => t.status === "pending_approval");
-  const history = allTrades.filter(
-    (t) => t.status === "approved" || t.status === "rejected"
+  const pendingApproval = allTrades.filter(
+    (t) => t.status === "pending_approval"
   );
-
-  // Trade Simulator data: everyone's current Sleeper roster, keeper prices for
-  // next season, and this manager's auction budget. It's a private client-side
-  // sandbox, so we only build it for a logged-in manager and let it fail soft
-  // — a Sleeper hiccup just hides the tool rather than breaking the page.
-  let simMe: SimRoster | null = null;
-  let simOthers: SimRoster[] = [];
-  if (manager) {
-    try {
-      const rosters = await getLeagueRosters(process.env.SLEEPER_LEAGUE_ID!);
-      const playersByRosterId = new Map(
-        rosters.map((r) => [r.roster_id, r.players ?? []])
-      );
-      const withRoster = (managers ?? [])
-        .map((m) => ({
-          manager: m,
-          playerIds: playersByRosterId.get(m.sleeper_roster_id) ?? [],
-        }))
-        .filter((x) => x.playerIds.length > 0);
-
-      const allPlayerIds = withRoster.flatMap((x) => x.playerIds);
-      // Every manager's auction budget — the partner's keeper try-out needs
-      // theirs too, not just the logged-in manager's.
-      const [simNames, keeperPrices, budgets] = await Promise.all([
-        getPlayerNames(supabase, allPlayerIds),
-        getKeeperPrices(supabase, activeSeason.year, allPlayerIds),
-        Promise.all(
-          withRoster.map((x) =>
-            getManagerAuctionBudget(
-              supabase,
-              activeSeason.id,
-              x.manager.id,
-              activeSeason.starting_budget
-            )
-          )
-        ),
-      ]);
-      const budgetByManagerId = new Map(
-        withRoster.map((x, i) => [x.manager.id, budgets[i]])
-      );
-
-      const toSimRoster = (x: (typeof withRoster)[number]): SimRoster => ({
-        managerId: x.manager.id,
-        name: resolveTeam(x.manager.display_name).name,
-        auctionBudget:
-          budgetByManagerId.get(x.manager.id) ?? activeSeason.starting_budget,
-        roster: x.playerIds
-          .map((playerId) => ({
-            playerId,
-            name: simNames.get(playerId) ?? playerId,
-            keeperPrice: keeperPrices.get(playerId) ?? null,
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name)),
-      });
-
-      simMe = withRoster.find((x) => x.manager.id === manager.id)
-        ? toSimRoster(withRoster.find((x) => x.manager.id === manager.id)!)
-        : null;
-      simOthers = withRoster
-        .filter((x) => x.manager.id !== manager.id)
-        .map(toSimRoster);
-    } catch {
-      simMe = null;
-    }
-  }
 
   // Everyone can see mid-flight trades (awaiting cash or approval) so a synced
   // trade is visible league-wide right away — not just to the two managers in
@@ -267,19 +163,10 @@ export default async function TradesPage() {
     );
   }
 
-  function viewSides(tradeId: string) {
-    return (sidesByTradeId.get(tradeId) ?? []).map((s) => ({
-      managerId: s.manager_id,
-      managerName: nameById.get(s.manager_id) ?? s.manager_id,
-      playersReceived: s.players_received.map(playerName),
-      cashAmount: s.cash_amount,
-    }));
-  }
-
   return (
     <div>
       <PageHeader
-        title={`Trades · ${activeSeason.year}`}
+        title={`Process Trades · ${activeSeason.year}`}
         subtitle="New trades sync from Sleeper automatically every few hours. Just made one? Hit Sync from Sleeper to pull it in now."
         right={manager ? <SyncTradesButton /> : undefined}
       />
@@ -312,7 +199,7 @@ export default async function TradesPage() {
           <div className="mt-3">
             <ManualTradeForm
               seasonId={activeSeason.id}
-              managers={managers ?? []}
+              managers={managers}
             />
           </div>
           <TradeApprovalQueue
@@ -324,8 +211,6 @@ export default async function TradesPage() {
           />
         </section>
       )}
-
-      {simMe && <TradeSimulator me={simMe} others={simOthers} />}
 
       <section className="mt-12">
         <h2 className="nameplate-type text-lg text-ink">In progress</h2>
@@ -349,39 +234,6 @@ export default async function TradesPage() {
                   </span>
                 </div>
                 <TradeSidesView sides={viewSides(t.id)} />
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="mt-12">
-        <h2 className="nameplate-type text-lg text-ink">History</h2>
-        {history.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">
-            No resolved trades yet this season.
-          </p>
-        ) : (
-          <div className="mt-3 space-y-4">
-            {history.map((t) => (
-              <div
-                key={t.id}
-                className="rounded-md border border-line bg-surface p-5"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <StatusBadge
-                    status={t.status === "approved" ? "approved" : "rejected"}
-                  />
-                  <span className="tabular text-xs text-muted">
-                    {new Date(t.approved_at ?? t.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-                <TradeSidesView sides={viewSides(t.id)} />
-                {t.status === "rejected" && t.rejection_reason && (
-                  <p className="mt-3 border-t border-line pt-3 text-sm text-muted">
-                    Reason: {t.rejection_reason}
-                  </p>
-                )}
               </div>
             ))}
           </div>
