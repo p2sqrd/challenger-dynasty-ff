@@ -28,7 +28,7 @@ export async function Nav() {
     children: [
       // "Process Trades" is /trades itself, so match it exactly — otherwise it
       // would light up on every /trades/* sub-page too.
-      { href: "/trades", label: "Process Trades", match: "exact" },
+      { href: "/trades", label: "Process Trade", match: "exact" },
       { href: "/trades/simulator", label: "Trade Simulator", match: "prefix" },
       { href: "/trades/history", label: "Trade History", match: "prefix" },
     ],
