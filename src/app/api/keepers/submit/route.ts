@@ -7,6 +7,7 @@ import {
   validateKeeperRoster,
   ROSTER_SIZE,
 } from "@/lib/rules/budget-validation";
+import { unvotedProposalCount } from "@/lib/keeper-gate";
 import type { KeeperPriceRule } from "@/types/database";
 
 interface SelectionInput {
@@ -49,6 +50,22 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json(
       { error: "The keeper deadline has passed — selections are locked." },
+      { status: 400 }
+    );
+  }
+
+  // You must vote on every open rule proposal before your keepers count. Read
+  // votes with the RLS client (they're world-readable) scoped to this manager.
+  const unvoted = await unvotedProposalCount(supabase, season.id, manager.id);
+  if (unvoted > 0) {
+    return NextResponse.json(
+      {
+        error: `Vote on ${unvoted} rule proposal${
+          unvoted === 1 ? "" : "s"
+        } before submitting your keepers.`,
+        needsVote: true,
+        unvoted,
+      },
       { status: 400 }
     );
   }

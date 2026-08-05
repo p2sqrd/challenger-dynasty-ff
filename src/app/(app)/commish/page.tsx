@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentManager } from "@/lib/managers";
+import { unvotedCountByManager } from "@/lib/keeper-gate";
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
 import { DeadlineSettingsForm } from "@/components/DeadlineSettingsForm";
@@ -58,7 +59,20 @@ export default async function CommishPage() {
   const roster = (managers ?? [])
     .filter((m) => activeIds.has(m.id))
     .sort((a, b) => a.display_name.localeCompare(b.display_name));
+  // A keeper set only counts once its manager has voted on every open rule
+  // proposal, so split the submitters into "accepted" and "still needs to vote."
+  const unvotedByManager = await unvotedCountByManager(
+    supabase,
+    activeSeason.id,
+    roster.map((m) => m.id)
+  );
   const submitted = roster.filter((m) => submittedIds.has(m.id));
+  const accepted = submitted.filter(
+    (m) => (unvotedByManager.get(m.id) ?? 0) === 0
+  );
+  const needsVote = submitted.filter(
+    (m) => (unvotedByManager.get(m.id) ?? 0) > 0
+  );
   const notSubmitted = roster.filter((m) => !submittedIds.has(m.id));
 
   return (
@@ -89,23 +103,42 @@ export default async function CommishPage() {
         </div>
         <p className="mt-1 max-w-2xl text-sm text-muted">
           Keepers are self-service — the system enforces the budget, so
-          there&apos;s nothing to approve. You can see who&apos;s submitted so you
-          can remind the stragglers, but{" "}
-          <span className="text-ink">not what anyone kept</span> — picks stay
-          private for everyone (you included) until the deadline locks them in.
+          there&apos;s nothing to approve. Keepers only count once a manager has
+          voted on every open rule proposal, so you can chase anyone who&apos;s
+          submitted but hasn&apos;t voted, or hasn&apos;t submitted at all — but{" "}
+          <span className="text-ink">not what anyone kept or how they voted</span>{" "}
+          — that stays private for everyone (you included) until the deadline.
         </p>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-md border border-line bg-surface p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-ink">
               <span className="inline-block h-2 w-2 rounded-full bg-approved" />
-              Submitted ({submitted.length})
+              Accepted ({accepted.length})
             </div>
-            {submitted.length === 0 ? (
-              <p className="text-sm text-muted">No one has submitted yet.</p>
+            {accepted.length === 0 ? (
+              <p className="text-sm text-muted">No accepted keepers yet.</p>
             ) : (
               <ul className="flex flex-wrap gap-2">
-                {submitted.map((m) => (
+                {accepted.map((m) => (
+                  <li key={m.id}>
+                    <Nameplate alias={m.display_name} size="sm" />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="rounded-md border border-line bg-surface p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-ink">
+              <span className="inline-block h-2 w-2 rounded-full bg-rejected" />
+              Submitted, hasn&apos;t voted ({needsVote.length})
+            </div>
+            {needsVote.length === 0 ? (
+              <p className="text-sm text-muted">No one&apos;s stuck here.</p>
+            ) : (
+              <ul className="flex flex-wrap gap-2">
+                {needsVote.map((m) => (
                   <li key={m.id}>
                     <Nameplate alias={m.display_name} size="sm" />
                   </li>
@@ -117,11 +150,11 @@ export default async function CommishPage() {
           <div className="rounded-md border border-line bg-surface p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-ink">
               <span className="inline-block h-2 w-2 rounded-full bg-pending" />
-              Not yet ({notSubmitted.length})
+              Not submitted ({notSubmitted.length})
             </div>
             {notSubmitted.length === 0 ? (
               <p className="text-sm text-approved">
-                Everyone&apos;s in — nothing to chase.
+                Everyone&apos;s submitted.
               </p>
             ) : (
               <ul className="flex flex-wrap gap-2">
