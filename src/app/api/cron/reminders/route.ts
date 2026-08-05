@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyAll } from "@/lib/notify";
+import { notifyAll, notifyManager } from "@/lib/notify";
+import { unvotedCountByManager } from "@/lib/keeper-gate";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -83,26 +84,73 @@ export async function GET(request: Request) {
     }));
   }
 
-  if (candidates.length === 0) {
-    return NextResponse.json({ ok: true, sent: 0 });
-  }
-
-  const { data: existing } = await admin
-    .from("reminder_log")
-    .select("key")
-    .in(
-      "key",
-      candidates.map((c) => c.key)
-    );
-  const done = new Set((existing ?? []).map((e) => e.key));
-
   let sent = 0;
-  for (const c of candidates) {
-    if (done.has(c.key)) continue;
-    await notifyAll(admin, { title: c.title, body: c.body, link: c.link });
-    await admin.from("reminder_log").insert({ key: c.key });
-    sent++;
+  if (candidates.length > 0) {
+    const { data: existing } = await admin
+      .from("reminder_log")
+      .select("key")
+      .in(
+        "key",
+        candidates.map((c) => c.key)
+      );
+    const done = new Set((existing ?? []).map((e) => e.key));
+
+    for (const c of candidates) {
+      if (done.has(c.key)) continue;
+      await notifyAll(admin, { title: c.title, body: c.body, link: c.link });
+      await admin.from("reminder_log").insert({ key: c.key });
+      sent++;
+    }
   }
 
-  return NextResponse.json({ ok: true, sent });
+  // Keeper-vote reminders: keepers only count once you've voted on every open
+  // rule proposal, so as the keeper deadline nears we personally nudge anyone
+  // who still hasn't. Per-manager, deduped per manager + threshold.
+  let voteSent = 0;
+  if (season?.keeper_deadline) {
+    const remaining = new Date(season.keeper_deadline).getTime() - now;
+    const thresholds =
+      remaining > 0 ? THRESHOLDS.filter((t) => remaining <= t * 3600_000) : [];
+    if (thresholds.length > 0) {
+      const { data: ledger } = await admin
+        .from("budget_ledger")
+        .select("manager_id")
+        .eq("season_id", season.id);
+      const activeIds = [...new Set((ledger ?? []).map((l) => l.manager_id))];
+      const unvotedBy = await unvotedCountByManager(admin, season.id, activeIds);
+      const laggards = activeIds.filter((id) => (unvotedBy.get(id) ?? 0) > 0);
+
+      if (laggards.length > 0) {
+        const keys = laggards.flatMap((id) =>
+          thresholds.map((t) => `keepervote:${id}:${t}`)
+        );
+        const { data: existingVote } = await admin
+          .from("reminder_log")
+          .select("key")
+          .in("key", keys);
+        const doneVote = new Set((existingVote ?? []).map((e) => e.key));
+
+        for (const id of laggards) {
+          const n = unvotedBy.get(id) ?? 0;
+          for (const t of thresholds) {
+            const key = `keepervote:${id}:${t}`;
+            if (doneVote.has(key)) continue;
+            await notifyManager(admin, id, {
+              title: "Vote now or your keepers won't count",
+              body: `Keepers lock in about ${hoursText(
+                t
+              )} — and yours won't be accepted until you vote on ${n} open rule proposal${
+                n === 1 ? "" : "s"
+              }.`,
+              link: "/rule-proposals",
+            });
+            await admin.from("reminder_log").insert({ key });
+            voteSent++;
+          }
+        }
+      }
+    }
+  }
+
+  return NextResponse.json({ ok: true, sent, voteSent });
 }

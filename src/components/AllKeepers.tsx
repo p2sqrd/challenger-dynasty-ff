@@ -4,6 +4,9 @@ import { PlayerAvatar } from "./PlayerAvatar";
 export interface LeagueRoster {
   managerName: string;
   players: { playerId: string; playerName: string; price: number }[];
+  /** True when this manager hasn't voted on every open proposal — their
+   *  keepers won't be accepted until they do. */
+  pendingVote?: boolean;
 }
 
 /**
@@ -33,6 +36,11 @@ export function AllKeepers({
             >
               <Nameplate alias={r.managerName} size="sm" />
               <p className="mt-3 text-sm text-muted">Not locked yet.</p>
+              {r.pendingVote && (
+                <p className="mt-1 text-xs text-pending">
+                  Hasn&apos;t voted on all proposals
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -49,11 +57,18 @@ export function AllKeepers({
             key={r.managerName}
             className="rounded-md border border-line bg-surface p-4"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <Nameplate alias={r.managerName} size="sm" />
-              <span className="tabular text-xs text-muted">
-                {r.players.length} kept · ${total}
-              </span>
+              <div className="flex items-center gap-2">
+                {r.pendingVote && (
+                  <span className="rounded bg-rejected/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-rejected">
+                    Not accepted
+                  </span>
+                )}
+                <span className="tabular text-xs text-muted">
+                  {r.players.length} kept · ${total}
+                </span>
+              </div>
             </div>
             {r.players.length === 0 ? (
               <p className="mt-3 text-sm text-muted">No keepers.</p>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { computeKeeperPrice } from "@/lib/rules/keeper-pricing";
 import {
   validateKeeperRoster,
@@ -34,6 +35,7 @@ export function KeeperSelectionForm({
   eligiblePlayers,
   existingSelections,
   deadlineLabel,
+  unvotedCount = 0,
 }: {
   seasonId: string;
   startingBudget: number;
@@ -41,6 +43,9 @@ export function KeeperSelectionForm({
   eligiblePlayers: EligiblePlayer[];
   existingSelections: ExistingSelection[];
   deadlineLabel?: string | null;
+  /** Open rule proposals this manager hasn't voted on. Keepers can't be
+   *  submitted until this is 0. */
+  unvotedCount?: number;
 }) {
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(existingSelections.map((s) => s.player_id))
@@ -90,7 +95,8 @@ export function KeeperSelectionForm({
     rosterSize,
   });
   const allComputable = selections.every((s) => s.price.computable);
-  const canSubmit = roster.ok && allComputable && !submitting;
+  const mustVote = unvotedCount > 0;
+  const canSubmit = roster.ok && allComputable && !submitting && !mustVote;
   const remaining = roster.remainingBudget;
 
   // Tower shows keepers newest-first: the `selected` Set keeps insertion
@@ -256,7 +262,22 @@ export function KeeperSelectionForm({
         >
           {submitting ? "Submitting…" : saved ? "Update keepers" : "Submit keepers"}
         </button>
-        {saved ? (
+        {mustVote ? (
+          <div className="mt-3 rounded-md border border-pending/40 bg-pending/10 p-3 text-center text-xs">
+            <p className="font-medium text-pending">Vote required first</p>
+            <p className="mt-1 text-muted">
+              Vote on {unvotedCount} open rule proposal
+              {unvotedCount === 1 ? "" : "s"} before your keepers can be
+              submitted.
+            </p>
+            <Link
+              href="/rule-proposals"
+              className="mt-2 inline-block rounded-md bg-brand px-3 py-1.5 font-semibold text-[var(--color-brand-ink)]"
+            >
+              Vote on rule proposals →
+            </Link>
+          </div>
+        ) : saved ? (
           <div className="mt-3 rounded-md border border-approved/30 bg-approved/10 p-3 text-center text-xs">
             <p className="flex items-center justify-center gap-1.5 font-medium text-approved">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-approved" />

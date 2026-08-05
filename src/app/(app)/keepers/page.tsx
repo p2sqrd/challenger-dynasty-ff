@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
 import { getManagerAuctionBudget } from "@/lib/budget";
+import { unvotedProposalCount, unvotedCountByManager } from "@/lib/keeper-gate";
 import { getLeagueRosters } from "@/lib/sleeper/client";
 import { getPlayerNames } from "@/lib/players";
 import { resolveTeam } from "@/lib/teams";
@@ -145,19 +147,39 @@ async function MyKeepers({
     .eq("season_id", season.id)
     .eq("manager_id", manager.id);
 
+  // Keepers only count once you've voted on every open rule proposal.
+  const unvoted = await unvotedProposalCount(supabase, season.id, manager.id);
+  const hasKeepers = (existingKeepers ?? []).length > 0;
+
   // Once the deadline has passed, keepers are locked — show a read-only card.
   if (locked) {
     const kept = existingKeepers ?? [];
     const total = kept.reduce((sum, k) => sum + k.new_price, 0);
+    // If they never finished voting, their set isn't accepted — voting closed
+    // with the deadline, so there's no way to fix it now.
+    const notAccepted = hasKeepers && unvoted > 0;
     return (
       <div className="rounded-md border border-line bg-surface p-5">
         <div className="mb-3 flex items-center justify-between">
-          <span className="flex items-center gap-2 text-sm text-ink">
-            <span className="inline-block h-2 w-2 rounded-full bg-approved" />
-            Locked in for {season.year}
-          </span>
+          {notAccepted ? (
+            <span className="flex items-center gap-2 text-sm text-rejected">
+              <span className="inline-block h-2 w-2 rounded-full bg-rejected" />
+              Not accepted for {season.year}
+            </span>
+          ) : (
+            <span className="flex items-center gap-2 text-sm text-ink">
+              <span className="inline-block h-2 w-2 rounded-full bg-approved" />
+              Locked in for {season.year}
+            </span>
+          )}
           <Nameplate team={team} size="sm" />
         </div>
+        {notAccepted && (
+          <p className="mb-3 rounded-md border border-rejected/40 bg-rejected/10 p-3 text-sm text-rejected">
+            These keepers were not accepted — you didn&apos;t vote on all rule
+            proposals before the deadline.
+          </p>
+        )}
         {kept.length === 0 ? (
           <p className="text-sm text-muted">
             You didn&apos;t keep anyone this year.
@@ -228,6 +250,43 @@ async function MyKeepers({
 
   return (
     <div>
+      {unvoted > 0 &&
+        (hasKeepers ? (
+          <div className="mb-4 rounded-md border border-rejected/40 bg-rejected/10 p-4">
+            <p className="text-sm font-medium text-rejected">
+              ⚠ Your keepers will NOT be accepted until you vote
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              You&apos;ve submitted keepers, but they only count once you&apos;ve
+              voted on all {unvoted} open rule proposal
+              {unvoted === 1 ? "" : "s"}. Vote before the deadline or your
+              keepers won&apos;t be accepted.
+            </p>
+            <Link
+              href="/rule-proposals"
+              className="mt-3 inline-block rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-[var(--color-brand-ink)]"
+            >
+              Vote on rule proposals →
+            </Link>
+          </div>
+        ) : (
+          <div className="mb-4 rounded-md border border-pending/40 bg-pending/10 p-4">
+            <p className="text-sm font-medium text-pending">
+              Vote before you can submit keepers
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              You need to vote on all {unvoted} open rule proposal
+              {unvoted === 1 ? "" : "s"} before your keepers can be submitted.
+            </p>
+            <Link
+              href="/rule-proposals"
+              className="mt-3 inline-block rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-[var(--color-brand-ink)]"
+            >
+              Vote on rule proposals →
+            </Link>
+          </div>
+        ))}
+
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <p className="max-w-2xl text-sm text-muted">
           You have ${auctionBudget} for the auction. Keep as many players as you
@@ -244,6 +303,7 @@ async function MyKeepers({
         eligiblePlayers={eligiblePlayers}
         existingSelections={existingKeepers ?? []}
         deadlineLabel={deadlineLabel}
+        unvotedCount={unvoted}
       />
     </div>
   );
@@ -275,6 +335,14 @@ async function AllKeepersSection({
   // has left the league), matching the Budget page.
   const activeIds = new Set((ledger ?? []).map((l) => l.manager_id));
 
+  // A manager's keepers aren't accepted until they've voted on every open
+  // proposal — flag anyone who still hasn't.
+  const unvotedByManager = await unvotedCountByManager(
+    supabase,
+    season.id,
+    [...activeIds]
+  );
+
   const keepersByManager = new Map<
     string,
     { playerId: string; playerName: string; price: number }[]
@@ -296,6 +364,11 @@ async function AllKeepersSection({
       players: (keepersByManager.get(m.id) ?? []).sort(
         (a, b) => b.price - a.price
       ),
+      // Only flag managers who've actually submitted — an empty, un-started
+      // roster isn't "not accepted," it's just nothing yet.
+      pendingVote:
+        (keepersByManager.get(m.id)?.length ?? 0) > 0 &&
+        (unvotedByManager.get(m.id) ?? 0) > 0,
     }))
     .sort((a, b) => a.managerName.localeCompare(b.managerName));
 
