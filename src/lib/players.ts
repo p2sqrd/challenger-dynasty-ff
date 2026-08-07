@@ -51,6 +51,74 @@ export async function getPlayerNames(
   return names;
 }
 
+export interface PlayerMeta {
+  name: string;
+  position: string | null;
+  team: string | null;
+}
+
+/**
+ * Resolve Sleeper player ids to name + position + NFL team in one pass, from
+ * the cached `players` table with the same Sleeper-dump fallback as
+ * {@link getPlayerNames}. Ids with no data at all are absent from the map.
+ */
+export async function getPlayerMeta(
+  supabase: SupabaseClient<Database>,
+  ids: string[]
+): Promise<Map<string, PlayerMeta>> {
+  const unique = [...new Set(ids)].filter(Boolean);
+  const meta = new Map<string, PlayerMeta>();
+  if (unique.length === 0) return meta;
+
+  // Chunk the id list — this table can be queried for the whole league at once
+  // (hundreds of ids), which would otherwise make an over-long request URL.
+  const CHUNK = 200;
+  try {
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const slice = unique.slice(i, i + CHUNK);
+      const { data, error } = await supabase
+        .from("players")
+        .select("player_id, full_name, position, team")
+        .in("player_id", slice);
+      if (!error && data) {
+        for (const p of data) {
+          meta.set(p.player_id, {
+            name: p.full_name,
+            position: p.position,
+            team: p.team,
+          });
+        }
+      }
+    }
+  } catch {
+    // Cache table missing — fall through to Sleeper below.
+  }
+
+  const missing = unique.filter((id) => !meta.has(id));
+  if (missing.length > 0) {
+    try {
+      const all = await getAllPlayers();
+      for (const id of missing) {
+        const p = all[id];
+        if (p) {
+          meta.set(id, {
+            name:
+              p.full_name ||
+              `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
+              id,
+            position: p.position ?? null,
+            team: p.team ?? null,
+          });
+        }
+      }
+    } catch {
+      // Leave unknowns absent.
+    }
+  }
+
+  return meta;
+}
+
 /**
  * Resolve Sleeper player ids to positions (QB/RB/WR/TE/DEF/…), from the cached
  * `players` table with the same Sleeper-dump fallback as {@link getPlayerNames}.
