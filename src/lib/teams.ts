@@ -54,7 +54,7 @@ const SEEDS: TeamSeed[] = [
   {
     // Co-managed by Vijay, Sahil, and Sankalp (roster 12). "Vijay" stays an
     // alias so historical sheet data still resolves to this team.
-    name: "VijSahKalp",
+    name: "Vij/Sah/Kalp",
     color: "#3BD1C4",
     active: true,
     aliases: [
@@ -63,6 +63,7 @@ const SEEDS: TeamSeed[] = [
       "Villages (Vijay)",
       "Sahil",
       "Sankalp",
+      "Vij/Sah/Kalp",
       "VijSahKalp",
     ],
   },
