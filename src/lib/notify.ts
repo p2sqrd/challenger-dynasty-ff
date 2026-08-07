@@ -86,13 +86,20 @@ async function sendEmail(
   const pass = process.env.GMAIL_APP_PASSWORD;
   if (!user || !pass) return; // email not configured — in-app only
 
-  const { data: mgrs } = await admin
-    .from("managers")
-    .select("email")
-    .in("id", recipientIds);
-  const emails = (mgrs ?? [])
-    .map((m) => m.email)
-    .filter((e): e is string => !!e && !e.endsWith("@placeholder.invalid"));
+  // Primary emails, plus any co-manager alias emails on the same teams, so
+  // every co-manager's inbox is reached (not just the team's primary email).
+  const [{ data: mgrs }, { data: aliases }] = await Promise.all([
+    admin.from("managers").select("email").in("id", recipientIds),
+    admin.from("manager_emails").select("email").in("manager_id", recipientIds),
+  ]);
+  const emails = [
+    ...new Set(
+      [
+        ...(mgrs ?? []).map((m) => m.email),
+        ...(aliases ?? []).map((a) => a.email),
+      ].filter((e): e is string => !!e && !e.endsWith("@placeholder.invalid"))
+    ),
+  ];
   if (emails.length === 0) return;
 
   const nodemailer = await import("nodemailer");

@@ -42,6 +42,22 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["managers"]["Row"]>;
         Relationships: [];
       };
+      manager_emails: {
+        Row: {
+          manager_id: string;
+          email: string;
+          created_at: string;
+        };
+        Insert: {
+          manager_id: string;
+          email: string;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["manager_emails"]["Row"]
+        >;
+        Relationships: [];
+      };
       seasons: {
         Row: {
           id: string;
