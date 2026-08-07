@@ -63,9 +63,12 @@ function sortValue(row: PlayerRow, col: SortCol): string | number | null {
 export function PlayersTable({
   players,
   keptRevealed,
+  keeperYear,
 }: {
   players: PlayerRow[];
   keptRevealed: boolean;
+  /** Upcoming season the keeper cost is for, e.g. 2026. */
+  keeperYear?: number;
 }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<{ col: SortCol; dir: SortDir }>({
@@ -216,6 +219,10 @@ export function PlayersTable({
             <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">
               {COLUMNS.map((c) => {
                 const active = sort.col === c.key;
+                const label =
+                  c.key === "keeperCost"
+                    ? `${keeperYear ? `${keeperYear} ` : ""}Keeper Cost`
+                    : c.label;
                 return (
                   <th
                     key={c.key}
@@ -230,7 +237,7 @@ export function PlayersTable({
                         active ? "text-ink" : ""
                       }`}
                     >
-                      {c.label}
+                      {label}
                       <span aria-hidden className="text-[9px]">
                         {active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
                       </span>

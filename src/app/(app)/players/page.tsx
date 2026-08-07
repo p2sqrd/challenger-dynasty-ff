@@ -189,7 +189,11 @@ export default async function PlayersPage() {
         title="Players"
         subtitle="Every player in the league — sorted by current keeper cost. Search or filter to find anyone, and click a row for their keeper-cost history and transactions."
       />
-      <PlayersTable players={rows} keptRevealed={keptRevealed} />
+      <PlayersTable
+        players={rows}
+        keptRevealed={keptRevealed}
+        keeperYear={activeSeason?.year}
+      />
     </div>
   );
 }
