@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getLeagueRosters } from "@/lib/sleeper/client";
 import { getPlayerMeta } from "@/lib/players";
+import { resolveTeam } from "@/lib/teams";
 import { computeKeeperPrice } from "@/lib/rules/keeper-pricing";
 import { PageHeader } from "@/components/PageHeader";
 import { PlayersTable, type PlayerRow } from "@/components/PlayersTable";
@@ -81,8 +82,13 @@ export default async function PlayersPage() {
 
   // Current team from live Sleeper rosters. Players on a roster with no draft
   // history still belong in the table — add them as history-less entries.
+  // Resolve to real names (the managers table stores Sleeper usernames) so the
+  // table and its manager filter read "Omar", not "omarels".
   const rosterToManager = new Map<number, string>(
-    (managers ?? []).map((m) => [m.sleeper_roster_id, m.display_name])
+    (managers ?? []).map((m) => [
+      m.sleeper_roster_id,
+      resolveTeam(m.display_name).name,
+    ])
   );
   try {
     const rosters = await getLeagueRosters(process.env.SLEEPER_LEAGUE_ID!);
