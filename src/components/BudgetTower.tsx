@@ -1,133 +1,128 @@
 "use client";
 
 import { PlayerAvatar } from "./PlayerAvatar";
+import type { RosterSlot, SlotKind } from "@/lib/roster-slots";
 
-export interface TowerKeeper {
-  playerId: string;
-  name: string;
-  newPrice: number;
+/** Per-position accent, echoing a Sleeper lineup for quick scanning. */
+const SLOT_ACCENT: Record<SlotKind, string> = {
+  QB: "#FF6B6B",
+  RB: "#5DD39E",
+  WR: "#4DA8FF",
+  TE: "#FF9D4D",
+  FLEX: "#C083FF",
+  DEF: "#767C89",
+  BN: "#767C89",
+};
+
+function SlotBadge({ kind, label }: { kind: SlotKind; label: string }) {
+  const c = SLOT_ACCENT[kind];
+  return (
+    <span
+      style={{
+        backgroundColor: `color-mix(in srgb, ${c} 18%, transparent)`,
+        color: c,
+      }}
+      className="w-12 shrink-0 rounded px-1 py-1 text-center text-[10px] font-semibold uppercase tracking-wide"
+    >
+      {label}
+    </span>
+  );
 }
 
-const TOWER_H = 520; // px reference height = the full auction budget
-const MIN_CHUNK = 52; // px floor so a face + name stay legible on cheap keepers
-const FREE_MIN = 84; // px floor for the "left for auction" area so its text always fits
-const BRAND_FILL = "color-mix(in srgb, var(--color-brand) 16%, transparent)";
-const BRAND_EDGE = "color-mix(in srgb, var(--color-brand) 40%, transparent)";
+function SlotRow({
+  slot,
+  onRemove,
+}: {
+  slot: RosterSlot;
+  onRemove: (playerId: string) => void;
+}) {
+  if (!slot.player) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-md border border-dashed border-line px-2 py-1.5">
+        <SlotBadge kind={slot.kind} label={slot.label} />
+        <span className="flex-1 text-sm text-muted">Open</span>
+      </div>
+    );
+  }
+  const p = slot.player;
+  return (
+    <button
+      onClick={() => onRemove(p.playerId)}
+      title="Remove keeper"
+      className="group flex w-full items-center gap-2.5 rounded-md border border-line bg-surface px-2 py-1.5 text-left transition-colors hover:border-[color-mix(in_srgb,var(--color-rejected)_50%,transparent)]"
+    >
+      <SlotBadge kind={slot.kind} label={slot.label} />
+      <PlayerAvatar playerId={p.playerId} name={p.name} size={28} />
+      <span className="min-w-0 flex-1 truncate text-sm text-ink">{p.name}</span>
+      <span className="tabular text-sm font-medium text-ink">${p.newPrice}</span>
+      <span className="pointer-events-none w-3 shrink-0 text-xs text-muted opacity-0 transition-opacity group-hover:opacity-100">
+        ✕
+      </span>
+    </button>
+  );
+}
 
 /**
- * The keeper budget as a stacked "tower". Its resting height maps to the
- * auction budget; keepers stack from the bottom (newest on top) with a
- * per-chunk height proportional to price but floored so every headshot stays
- * readable. Above them sits the hatched roster-fill reserve ($1 per open
- * spot) and then the free-to-spend remainder. Because the chunk floor can
- * push the stack past the resting height, the tower *grows* to fit rather
- * than squeezing the remainder area (which would clip its text). Clicking a
- * chunk removes that keeper.
+ * The keeper budget as a roster board: the league's starting slots (QB, RB,
+ * RB, WR, WR, WR, TE, FLEX, DEF) on top, then the bench, with each selected
+ * keeper slotted into place and every still-open slot showing "Open" — so it
+ * reads like your lineup and makes clear what's left to fill in the auction.
+ * A budget summary sits up top; clicking a filled slot removes that keeper.
  */
 export function BudgetTower({
   budget,
-  selections,
-  emptySpots,
-  minToFillRoster,
+  slots,
   remaining,
   ok,
   onRemove,
 }: {
   budget: number;
-  /** Newest keeper first. */
-  selections: TowerKeeper[];
-  emptySpots: number;
-  minToFillRoster: number;
+  slots: RosterSlot[];
   remaining: number;
   ok: boolean;
   onRemove: (playerId: string) => void;
 }) {
-  const scale = budget > 0 ? TOWER_H / budget : 0;
-  const reserveH = minToFillRoster > 0 ? Math.max(8, minToFillRoster * scale) : 0;
+  const starters = slots.filter((s) => s.kind !== "BN");
+  const bench = slots.filter((s) => s.kind === "BN");
 
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between">
-        <span className="nameplate-type text-sm text-ink">Budget tower</span>
+        <span className="nameplate-type text-sm text-ink">Roster</span>
         <span className="tabular text-sm text-muted">${budget} cap</span>
       </div>
 
-      <div
-        style={{ minHeight: TOWER_H }}
-        className="flex flex-col overflow-hidden rounded-md border border-line bg-canvas p-1.5"
-      >
-        {/* Free-to-spend remainder — grows to fill slack when the tower is at
-            its resting height; holds a floor so its text never gets clipped. */}
-        <div
-          style={{ minHeight: FREE_MIN }}
-          className="flex flex-1 flex-col items-center justify-center gap-0.5 p-2 text-center"
-        >
-          {ok ? (
-            <>
-              <div className="tabular text-2xl font-semibold text-ink">
-                ${remaining}
-              </div>
-              <div className="text-[10px] uppercase tracking-wide text-muted">
-                left for auction
-              </div>
-            </>
-          ) : (
-            <div className="text-sm font-semibold text-rejected">
-              Over budget
+      <div className="mb-3 rounded-md border border-line bg-canvas p-3 text-center">
+        {ok ? (
+          <>
+            <div className="tabular text-2xl font-semibold text-ink">
+              ${remaining}
             </div>
-          )}
-        </div>
-
-        {/* Roster-fill reserve: $1 for every open spot. */}
-        {reserveH > 0 && (
-          <div
-            style={{
-              height: reserveH,
-              backgroundImage:
-                "repeating-linear-gradient(45deg, var(--color-line) 0 5px, transparent 5px 10px)",
-            }}
-            className="mt-1 flex shrink-0 items-center justify-center rounded-sm border border-line text-[10px] text-muted"
-            title={`Reserve $${minToFillRoster} to fill ${emptySpots} open roster spots at $1 each`}
-          >
-            {reserveH >= 20 && (
-              <span>
-                reserve ${minToFillRoster} · {emptySpots} open
-              </span>
-            )}
-          </div>
+            <div className="text-[10px] uppercase tracking-wide text-muted">
+              left for auction
+            </div>
+          </>
+        ) : (
+          <div className="text-sm font-semibold text-rejected">Over budget</div>
         )}
+      </div>
 
-        {/* Keeper chunks — newest on top, height ∝ price (floored). */}
-        {selections.map((k) => {
-          const h = Math.max(MIN_CHUNK, k.newPrice * scale);
-          const avatar = Math.min(44, Math.max(28, h - 14));
-          return (
-            <button
-              key={k.playerId}
-              onClick={() => onRemove(k.playerId)}
-              style={{ height: h, backgroundColor: BRAND_FILL, borderColor: BRAND_EDGE }}
-              className="group relative mt-1 flex shrink-0 items-center gap-2.5 overflow-hidden rounded-md border px-2.5 text-left"
-              title="Remove keeper"
-            >
-              <PlayerAvatar playerId={k.playerId} name={k.name} size={avatar} />
-              <span className="min-w-0 flex-1 truncate text-sm text-ink">
-                {k.name}
-              </span>
-              <span className="tabular text-sm font-medium text-ink">
-                ${k.newPrice}
-              </span>
-              <span className="pointer-events-none absolute right-1 top-1 text-xs text-muted opacity-0 transition-opacity group-hover:opacity-100">
-                ✕
-              </span>
-            </button>
-          );
-        })}
+      <div className="mb-1 text-[10px] uppercase tracking-wide text-muted">
+        Starters
+      </div>
+      <div className="space-y-1">
+        {starters.map((slot, i) => (
+          <SlotRow key={`${slot.kind}-${i}`} slot={slot} onRemove={onRemove} />
+        ))}
+      </div>
 
-        {selections.length === 0 && (
-          <div className="shrink-0 pb-2 text-center text-xs text-muted">
-            Check players on the left to stack them here.
-          </div>
-        )}
+      <div className="mb-1 mt-3 text-[10px] uppercase tracking-wide text-muted">
+        Bench
+      </div>
+      <div className="space-y-1">
+        {bench.map((slot, i) => (
+          <SlotRow key={`BN-${i}`} slot={slot} onRemove={onRemove} />
+        ))}
       </div>
     </div>
   );
