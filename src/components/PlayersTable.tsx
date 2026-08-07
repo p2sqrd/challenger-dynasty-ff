@@ -5,6 +5,11 @@ import { Nameplate } from "./Nameplate";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { MultiSelectFilter } from "./MultiSelectFilter";
 import {
+  positionColor,
+  nflTeamColor,
+  contrastText,
+} from "@/lib/player-badges";
+import {
   PlayerDetailPanel,
   type PlayerHistoryEntry,
   type PlayerTradeEntry,
@@ -34,14 +39,40 @@ type SortCol =
   | "kept";
 type SortDir = "asc" | "desc";
 
-const COLUMNS: { key: SortCol; label: string; className?: string }[] = [
+// Position and NFL team ride along as badges on the Player cell, so they're
+// not their own sortable columns.
+const COLUMNS: { key: SortCol; label: string }[] = [
   { key: "name", label: "Player" },
   { key: "keeperCost", label: "Keeper $" },
-  { key: "position", label: "Pos" },
-  { key: "team", label: "NFL" },
   { key: "manager", label: "Current manager" },
   { key: "kept", label: "Kept?" },
 ];
+
+const BADGE = "rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide";
+
+function PositionBadge({ position }: { position: string }) {
+  const c = positionColor(position);
+  return (
+    <span
+      className={BADGE}
+      style={{
+        backgroundColor: `color-mix(in srgb, ${c} 20%, transparent)`,
+        color: c,
+      }}
+    >
+      {position}
+    </span>
+  );
+}
+
+function TeamBadge({ team }: { team: string }) {
+  const bg = nflTeamColor(team) ?? "#5A6472";
+  return (
+    <span className={BADGE} style={{ backgroundColor: bg, color: contrastText(bg) }}>
+      {team}
+    </span>
+  );
+}
 
 function sortValue(row: PlayerRow, col: SortCol): string | number | null {
   switch (col) {
@@ -274,6 +305,8 @@ export function PlayersTable({
                           size={28}
                         />
                         <span className="text-ink">{row.playerName}</span>
+                        {row.position && <PositionBadge position={row.position} />}
+                        {row.team && <TeamBadge team={row.team} />}
                       </span>
                     </td>
                     <td className="tabular px-4 text-ink">
@@ -283,8 +316,6 @@ export function PlayersTable({
                         `$${row.keeperCost}`
                       )}
                     </td>
-                    <td className="px-4 text-muted">{row.position ?? "—"}</td>
-                    <td className="px-4 text-muted">{row.team ?? "—"}</td>
                     <td className="px-4">
                       {row.currentManager ? (
                         <Nameplate alias={row.currentManager} size="sm" />
