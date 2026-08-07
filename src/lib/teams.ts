@@ -52,10 +52,19 @@ const SEEDS: TeamSeed[] = [
   { name: "Harish", color: "#FF6F91", active: true, aliases: ["hs1", "Harish"] },
   { name: "Aditya", color: "#9B8CFF", active: true, aliases: ["aml200", "Aditya", "Adi"] },
   {
-    name: "Vijay",
+    // Co-managed by Vijay, Sahil, and Sankalp (roster 12). "Vijay" stays an
+    // alias so historical sheet data still resolves to this team.
+    name: "VijSahKalp",
     color: "#3BD1C4",
     active: true,
-    aliases: ["vijaysingh1194", "Vijay", "Villages (Vijay)"],
+    aliases: [
+      "vijaysingh1194",
+      "Vijay",
+      "Villages (Vijay)",
+      "Sahil",
+      "Sankalp",
+      "VijSahKalp",
+    ],
   },
   { name: "Harsha", color: "#7FA8D9", active: true, aliases: ["hnukala", "Harsha"] },
   // Former members — muted, referenced only in historical data.
