@@ -7,12 +7,18 @@ import {
   validateKeeperRoster,
   ROSTER_SIZE,
 } from "@/lib/rules/budget-validation";
-import { BudgetTower, type TowerKeeper } from "./BudgetTower";
+import { BudgetTower } from "./BudgetTower";
+import {
+  assignRosterSlots,
+  type SlottablePlayer,
+} from "@/lib/roster-slots";
 import type { DraftSource, KeeperPriceRule } from "@/types/database";
 
 export interface EligiblePlayer {
   playerId: string;
   playerName: string;
+  /** Sleeper position (QB/RB/WR/TE/DEF/…) for roster-slot placement. */
+  position?: string | null;
   /** Absent when the player wasn't in last season's draft_records (e.g.
    * added off waivers mid-season) — needs manual pricing input below. */
   priorRecord?: { price: number; source: DraftSource };
@@ -99,19 +105,24 @@ export function KeeperSelectionForm({
   const canSubmit = roster.ok && allComputable && !submitting && !mustVote;
   const remaining = roster.remainingBudget;
 
-  // Tower shows keepers newest-first: the `selected` Set keeps insertion
-  // order, so reversing it puts the most recently added keeper on top.
-  const towerSelections: TowerKeeper[] = useMemo(() => {
+  // Slot keepers into the league roster for the tower. Iterate in *selection*
+  // order (the `selected` Set's insertion order) so earlier picks claim the
+  // starting slots first.
+  const rosterSlots = useMemo(() => {
     const byId = new Map(
       selections.map((s) => [
         s.player.playerId,
-        { name: s.player.playerName, newPrice: s.price.newPrice },
+        {
+          name: s.player.playerName,
+          newPrice: s.price.newPrice,
+          position: s.player.position ?? null,
+        },
       ])
     );
-    return [...selected]
+    const players: SlottablePlayer[] = [...selected]
       .filter((id) => byId.has(id))
-      .reverse()
       .map((id) => ({ playerId: id, ...byId.get(id)! }));
+    return assignRosterSlots(players);
   }, [selected, selections]);
 
   function toggle(playerId: string) {
@@ -231,9 +242,7 @@ export function KeeperSelectionForm({
       <div className="mt-6 lg:mt-0 lg:sticky lg:top-20">
         <BudgetTower
           budget={startingBudget}
-          selections={towerSelections}
-          emptySpots={roster.emptySpots}
-          minToFillRoster={roster.minToFillRoster}
+          slots={rosterSlots}
           remaining={remaining}
           ok={roster.ok}
           onRemove={toggle}

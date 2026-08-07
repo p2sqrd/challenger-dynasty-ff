@@ -50,3 +50,44 @@ export async function getPlayerNames(
 
   return names;
 }
+
+/**
+ * Resolve Sleeper player ids to positions (QB/RB/WR/TE/DEF/…), from the cached
+ * `players` table with the same Sleeper-dump fallback as {@link getPlayerNames}.
+ * Ids with no known position are simply absent from the returned map.
+ */
+export async function getPlayerPositions(
+  supabase: SupabaseClient<Database>,
+  ids: string[]
+): Promise<Map<string, string>> {
+  const unique = [...new Set(ids)].filter(Boolean);
+  const positions = new Map<string, string>();
+  if (unique.length === 0) return positions;
+
+  try {
+    const { data, error } = await supabase
+      .from("players")
+      .select("player_id, position")
+      .in("player_id", unique);
+    if (!error && data) {
+      for (const p of data) if (p.position) positions.set(p.player_id, p.position);
+    }
+  } catch {
+    // Cache table missing (pre-migration) — fall through to Sleeper below.
+  }
+
+  const missing = unique.filter((id) => !positions.has(id));
+  if (missing.length > 0) {
+    try {
+      const all = await getAllPlayers();
+      for (const id of missing) {
+        const p = all[id];
+        if (p?.position) positions.set(id, p.position);
+      }
+    } catch {
+      // Leave unknowns absent — the caller treats them as bench-only.
+    }
+  }
+
+  return positions;
+}

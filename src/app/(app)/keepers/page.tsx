@@ -4,7 +4,7 @@ import { getCurrentManager } from "@/lib/managers";
 import { getManagerAuctionBudget } from "@/lib/budget";
 import { unvotedProposalCount, unvotedCountByManager } from "@/lib/keeper-gate";
 import { getLeagueRosters } from "@/lib/sleeper/client";
-import { getPlayerNames } from "@/lib/players";
+import { getPlayerNames, getPlayerPositions } from "@/lib/players";
 import { resolveTeam } from "@/lib/teams";
 import { ROSTER_SIZE } from "@/lib/rules/budget-validation";
 import { PageHeader } from "@/components/PageHeader";
@@ -235,13 +235,17 @@ async function MyKeepers({
   const recordByPlayerId = new Map(
     (priorRecords ?? []).map((r) => [r.player_id, r])
   );
-  const nameMap = await getPlayerNames(supabase, rosterPlayerIds);
+  const [nameMap, positionMap] = await Promise.all([
+    getPlayerNames(supabase, rosterPlayerIds),
+    getPlayerPositions(supabase, rosterPlayerIds),
+  ]);
 
   const eligiblePlayers: EligiblePlayer[] = rosterPlayerIds.map((playerId) => {
     const record = recordByPlayerId.get(playerId);
     return {
       playerId,
       playerName: record?.player_name || nameMap.get(playerId) || playerId,
+      position: positionMap.get(playerId) ?? null,
       priorRecord: record
         ? { price: record.price, source: record.source }
         : undefined,
