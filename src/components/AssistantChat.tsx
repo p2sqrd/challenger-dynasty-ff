@@ -90,7 +90,7 @@ export function AssistantChat() {
           never given keeper prices, budgets, or picks, so nothing private can
           leak. For price-aware keeper math, use the{" "}
           <span className="text-ink">Keepers</span> page and the{" "}
-          <span className="text-ink">Trade Simulator</span> under Trades.
+          <span className="text-ink">Simulate Trade</span> tool under Trades.
         </p>
       </details>
 

@@ -58,6 +58,30 @@ export interface Database {
         >;
         Relationships: [];
       };
+      keeper_simulations: {
+        Row: {
+          id: string;
+          manager_id: string;
+          season_id: string;
+          name: string;
+          selections: Record<string, string[]>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          manager_id: string;
+          season_id: string;
+          name: string;
+          selections?: Record<string, string[]>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["keeper_simulations"]["Row"]
+        >;
+        Relationships: [];
+      };
       seasons: {
         Row: {
           id: string;

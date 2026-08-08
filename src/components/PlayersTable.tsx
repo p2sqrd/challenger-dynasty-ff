@@ -40,14 +40,8 @@ type SortCol =
 type SortDir = "asc" | "desc";
 
 // Position and NFL team ride along as badges on the Player cell, so they're
-// not their own sortable columns.
-const COLUMNS: { key: SortCol; label: string }[] = [
-  { key: "name", label: "Player" },
-  { key: "keeperCost", label: "Keeper $" },
-  { key: "manager", label: "Current manager" },
-  { key: "kept", label: "Kept?" },
-];
-
+// not their own sortable columns. The columns list is built per-render inside
+// the component so labels + the optional Kept column can be configured.
 const BADGE = "rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide";
 
 function PositionBadge({ position }: { position: string }) {
@@ -95,12 +89,32 @@ export function PlayersTable({
   players,
   keptRevealed,
   keeperYear,
+  keeperCostLabel,
+  managerLabel = "Current manager",
+  showKept = true,
 }: {
   players: PlayerRow[];
   keptRevealed: boolean;
   /** Upcoming season the keeper cost is for, e.g. 2026. */
   keeperYear?: number;
+  /** Override the keeper-cost header (e.g. "Last Keeper Cost"). */
+  keeperCostLabel?: string;
+  /** Override the manager header (e.g. "Last Manager"). */
+  managerLabel?: string;
+  /** Show the "Kept?" column. */
+  showKept?: boolean;
 }) {
+  const columns: { key: SortCol; label: string }[] = [
+    { key: "name", label: "Player" },
+    {
+      key: "keeperCost",
+      label:
+        keeperCostLabel ??
+        `${keeperYear ? `${keeperYear} ` : ""}Keeper Cost`,
+    },
+    { key: "manager", label: managerLabel },
+    ...(showKept ? [{ key: "kept" as const, label: "Kept?" }] : []),
+  ];
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<{ col: SortCol; dir: SortDir }>({
     col: "keeperCost",
@@ -155,7 +169,7 @@ export function PlayersTable({
           row.position ?? "",
           row.team ?? "",
           row.currentManager ?? "free agent",
-          row.kept === null ? "" : row.kept ? "yes kept" : "no",
+          showKept && row.kept !== null ? (row.kept ? "yes kept" : "no") : "",
         ]
           .join(" ")
           .toLowerCase();
@@ -180,7 +194,7 @@ export function PlayersTable({
       return r === 0 ? a.playerName.localeCompare(b.playerName) : r * dir;
     });
     return filtered;
-  }, [players, query, sort, managers, positions, teams, statuses]);
+  }, [players, query, sort, managers, positions, teams, statuses, showKept]);
 
   function toggleSort(col: SortCol) {
     setSort((s) =>
@@ -241,19 +255,18 @@ export function PlayersTable({
 
       <p className="mt-2 text-xs text-muted">
         {rows.length} player{rows.length === 1 ? "" : "s"}
-        {!keptRevealed && " · “Kept?” is revealed after the keeper deadline"}
+        {showKept &&
+          !keptRevealed &&
+          " · “Kept?” is revealed after the keeper deadline"}
       </p>
 
       <div className="mt-3 overflow-x-auto rounded-md border border-line">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">
-              {COLUMNS.map((c) => {
+              {columns.map((c) => {
                 const active = sort.col === c.key;
-                const label =
-                  c.key === "keeperCost"
-                    ? `${keeperYear ? `${keeperYear} ` : ""}Keeper Cost`
-                    : c.label;
+                const label = c.label;
                 return (
                   <th
                     key={c.key}
@@ -323,19 +336,21 @@ export function PlayersTable({
                         <span className="text-muted">Free Agent</span>
                       )}
                     </td>
-                    <td className="px-4">
-                      {row.kept === null ? (
-                        <span className="text-muted">—</span>
-                      ) : row.kept ? (
-                        <span className="text-approved">Yes</span>
-                      ) : (
-                        <span className="text-muted">No</span>
-                      )}
-                    </td>
+                    {showKept && (
+                      <td className="px-4">
+                        {row.kept === null ? (
+                          <span className="text-muted">—</span>
+                        ) : row.kept ? (
+                          <span className="text-approved">Yes</span>
+                        ) : (
+                          <span className="text-muted">No</span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                   {isOpen && (
                     <tr className="border-b border-line bg-canvas">
-                      <td colSpan={COLUMNS.length} className="p-4">
+                      <td colSpan={columns.length} className="p-4">
                         <PlayerDetailPanel
                           history={row.history}
                           trades={row.trades}
@@ -349,7 +364,7 @@ export function PlayersTable({
             {rows.length === 0 && (
               <tr>
                 <td
-                  colSpan={COLUMNS.length}
+                  colSpan={columns.length}
                   className="px-4 py-8 text-center text-sm text-muted"
                 >
                   No players match your search and filters.

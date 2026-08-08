@@ -94,7 +94,7 @@ export default async function TradeSimulatorPage() {
   return (
     <div>
       <PageHeader
-        title="Trade Simulator"
+        title="Simulate Trade"
         subtitle="A private what-if tool — pick a partner, move players and cash, and see how your roster, budget, and keepers would look. Nothing is saved."
       />
 

@@ -39,10 +39,22 @@ function diffParts(target: number, now: number) {
   };
 }
 
-function Cell({ value, unit }: { value: number | null; unit: string }) {
+function Cell({
+  value,
+  unit,
+  compact,
+}: {
+  value: number | null;
+  unit: string;
+  compact?: boolean;
+}) {
   return (
     <div className="flex flex-col items-center">
-      <span className="tabular text-4xl font-semibold leading-none text-ink sm:text-5xl">
+      <span
+        className={`tabular font-semibold leading-none text-ink ${
+          compact ? "text-2xl" : "text-4xl sm:text-5xl"
+        }`}
+      >
         {value === null ? "––" : String(value).padStart(2, "0")}
       </span>
       <span className="mt-1.5 text-[10px] uppercase tracking-widest text-muted">
@@ -52,10 +64,43 @@ function Cell({ value, unit }: { value: number | null; unit: string }) {
   );
 }
 
-function TimerCard({ timer, now }: { timer: Timer; now: number | null }) {
+function TimerCard({
+  timer,
+  now,
+  compact,
+}: {
+  timer: Timer;
+  now: number | null;
+  compact?: boolean;
+}) {
   const targetMs = timer.target ? new Date(timer.target).getTime() : null;
   const valid = targetMs !== null && !Number.isNaN(targetMs);
   const parts = valid && now !== null ? diffParts(targetMs, now) : null;
+
+  if (compact) {
+    return (
+      <div className="rounded-md border border-line bg-surface p-3">
+        <div className="flex items-center gap-1.5">
+          <span aria-hidden className="h-2.5 w-1 rounded-sm bg-brand" />
+          <span className="nameplate-type text-xs text-ink">{timer.label}</span>
+        </div>
+        {!valid ? (
+          <div className="mt-2 nameplate-type text-2xl text-muted">TBD</div>
+        ) : parts?.done ? (
+          <div className="mt-2 nameplate-type text-2xl text-gold">
+            It&apos;s here
+          </div>
+        ) : (
+          <div className="mt-2 grid grid-cols-4 gap-2">
+            <Cell compact value={parts ? parts.days : null} unit="d" />
+            <Cell compact value={parts ? parts.hours : null} unit="h" />
+            <Cell compact value={parts ? parts.minutes : null} unit="m" />
+            <Cell compact value={parts ? parts.seconds : null} unit="s" />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-lg border border-line bg-surface p-5">
@@ -100,13 +145,19 @@ function TimerCard({ timer, now }: { timer: Timer; now: number | null }) {
   );
 }
 
-export function CountdownTimers({ timers }: { timers: Timer[] }) {
+export function CountdownTimers({
+  timers,
+  compact = false,
+}: {
+  timers: Timer[];
+  compact?: boolean;
+}) {
   const now = useNow();
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className={`grid ${compact ? "gap-2" : "gap-4"} sm:grid-cols-2`}>
       {timers.map((t) => (
-        <TimerCard key={t.label} timer={t} now={now} />
+        <TimerCard key={t.label} timer={t} now={now} compact={compact} />
       ))}
     </div>
   );
