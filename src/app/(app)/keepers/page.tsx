@@ -2,17 +2,14 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
 import { getManagerAuctionBudget } from "@/lib/budget";
-import { unvotedProposalCount, unvotedCountByManager } from "@/lib/keeper-gate";
+import { unvotedProposalCount } from "@/lib/keeper-gate";
 import { getLeagueRosters } from "@/lib/sleeper/client";
 import { getPlayerNames, getPlayerPositions } from "@/lib/players";
 import { resolveTeam } from "@/lib/teams";
 import { ROSTER_SIZE } from "@/lib/rules/budget-validation";
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
-import { CountdownTimers } from "@/components/CountdownTimers";
-import { TopBanners } from "@/components/TopBanners";
 import { KeeperSelectionForm } from "@/components/KeeperSelectionForm";
-import { AllKeepers, type LeagueRoster } from "@/components/AllKeepers";
 import type { EligiblePlayer } from "@/components/KeeperSelectionForm";
 
 function Notice({ children }: { children: React.ReactNode }) {
@@ -23,22 +20,7 @@ function Notice({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="mt-10 first:mt-0">
-      <h2 className="nameplate-type mb-4 text-xl text-ink">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-export default async function KeepersPage() {
+export default async function SetMyKeepersPage() {
   const supabase = await createClient();
   const manager = await getCurrentManager(supabase);
 
@@ -51,7 +33,7 @@ export default async function KeepersPage() {
   if (!season) {
     return (
       <div>
-        <PageHeader title="Keepers" />
+        <PageHeader title="Set My Keepers" />
         <Notice>
           No active season configured yet — ask your commissioner to open one.
         </Notice>
@@ -77,34 +59,16 @@ export default async function KeepersPage() {
 
   return (
     <div>
-      <TopBanners />
-
       <PageHeader
-        title="Keepers"
+        title="Set My Keepers"
         subtitle="Lock in the players you're carrying into the 2026 auction."
       />
-
-      <Section title="Upcoming">
-        <CountdownTimers
-          timers={[
-            { label: "Keeper deadline", target: season.keeper_deadline },
-            { label: "Draft day", target: season.draft_datetime },
-          ]}
-        />
-      </Section>
-
-      <Section title="My Keepers">
-        <MyKeepers
-          manager={manager}
-          season={season}
-          locked={locked}
-          deadlineLabel={deadlineLabel}
-        />
-      </Section>
-
-      <Section title="All Keepers">
-        <AllKeepersSection season={season} locked={locked} />
-      </Section>
+      <MyKeepers
+        manager={manager}
+        season={season}
+        locked={locked}
+        deadlineLabel={deadlineLabel}
+      />
     </div>
   );
 }
@@ -311,70 +275,4 @@ async function MyKeepers({
       />
     </div>
   );
-}
-
-async function AllKeepersSection({
-  season,
-  locked,
-}: {
-  season: Season;
-  locked: boolean;
-}) {
-  const supabase = await createClient();
-
-  const [{ data: managers }, { data: ledger }, { data: keepers }] =
-    await Promise.all([
-      supabase.from("managers").select("id, display_name"),
-      supabase
-        .from("budget_ledger")
-        .select("manager_id")
-        .eq("season_id", season.id),
-      supabase
-        .from("keepers")
-        .select("manager_id, player_id, player_name, new_price, status")
-        .eq("season_id", season.id),
-    ]);
-
-  // Active managers this season = those with a budget entry (drops anyone who
-  // has left the league), matching the Budget page.
-  const activeIds = new Set((ledger ?? []).map((l) => l.manager_id));
-
-  // A manager's keepers aren't accepted until they've voted on every open
-  // proposal — flag anyone who still hasn't.
-  const unvotedByManager = await unvotedCountByManager(
-    supabase,
-    season.id,
-    [...activeIds]
-  );
-
-  const keepersByManager = new Map<
-    string,
-    { playerId: string; playerName: string; price: number }[]
-  >();
-  for (const k of keepers ?? []) {
-    const list = keepersByManager.get(k.manager_id) ?? [];
-    list.push({
-      playerId: k.player_id,
-      playerName: k.player_name,
-      price: k.new_price,
-    });
-    keepersByManager.set(k.manager_id, list);
-  }
-
-  const rosters: LeagueRoster[] = (managers ?? [])
-    .filter((m) => activeIds.has(m.id))
-    .map((m) => ({
-      managerName: m.display_name,
-      players: (keepersByManager.get(m.id) ?? []).sort(
-        (a, b) => b.price - a.price
-      ),
-      // Only flag managers who've actually submitted — an empty, un-started
-      // roster isn't "not accepted," it's just nothing yet.
-      pendingVote:
-        (keepersByManager.get(m.id)?.length ?? 0) > 0 &&
-        (unvotedByManager.get(m.id) ?? 0) > 0,
-    }))
-    .sort((a, b) => a.managerName.localeCompare(b.managerName));
-
-  return <AllKeepers rosters={rosters} locked={locked} />;
 }

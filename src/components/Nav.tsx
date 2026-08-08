@@ -14,13 +14,21 @@ export async function Nav() {
   const manager = await getCurrentManager(supabase);
   const team = manager ? resolveTeam(manager.display_name) : null;
 
-  const draftPrep: NavLink = {
-    href: "/draft-prep",
-    label: "Draft Prep",
+  const keepers: NavLink = {
+    href: "/keepers",
+    label: "Keepers",
     children: [
-      { href: "/keepers", label: "Keepers", match: "prefix" },
-      { href: "/rule-proposals", label: "2026 Rule Proposals", match: "prefix" },
+      // "Set My Keepers" is /keepers itself, so match it exactly — otherwise it
+      // would light up on every /keepers/* sub-page too.
+      { href: "/keepers", label: "Set My Keepers", match: "exact" },
+      { href: "/keepers/simulate", label: "Simulate Keepers", match: "prefix" },
+      { href: "/keepers/league", label: "League Keepers", match: "prefix" },
     ],
+  };
+  const ruleProposals: NavLink = {
+    href: "/rule-proposals",
+    label: "Rule Proposals",
+    match: "prefix",
   };
   const trades: NavLink = {
     href: "/trades",
@@ -29,7 +37,7 @@ export async function Nav() {
       // "Process Trades" is /trades itself, so match it exactly — otherwise it
       // would light up on every /trades/* sub-page too.
       { href: "/trades", label: "Process Trade", match: "exact" },
-      { href: "/trades/simulator", label: "Trade Simulator", match: "prefix" },
+      { href: "/trades/simulator", label: "Simulate Trade", match: "prefix" },
       { href: "/trades/history", label: "Trade History", match: "prefix" },
     ],
   };
@@ -53,7 +61,8 @@ export async function Nav() {
       : [];
 
   const links: NavLink[] = [
-    draftPrep,
+    keepers,
+    ruleProposals,
     trades,
     budget,
     fireSale,
