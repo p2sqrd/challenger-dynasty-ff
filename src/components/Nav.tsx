@@ -14,6 +14,9 @@ export async function Nav() {
   const manager = await getCurrentManager(supabase);
   const team = manager ? resolveTeam(manager.display_name) : null;
 
+  // Exact match — every path starts with "/", so a prefix match would light up
+  // Home on every page.
+  const home: NavLink = { href: "/", label: "Home", match: "exact" };
   const keepers: NavLink = {
     href: "/keepers",
     label: "Keepers",
@@ -61,6 +64,7 @@ export async function Nav() {
       : [];
 
   const links: NavLink[] = [
+    home,
     keepers,
     ruleProposals,
     trades,
