@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  validateKeeperRoster,
+  ROSTER_SIZE,
+} from "@/lib/rules/budget-validation";
 import { Nameplate } from "./Nameplate";
 import { PlayersTable, type PlayerRow } from "./PlayersTable";
 import type {
@@ -81,6 +85,33 @@ export function KeeperSimulator({
     for (const pid of selections[managerId] ?? []) s += costById.get(pid) ?? 0;
     return s;
   }
+
+  // Same rules as setting your own keepers: stay within budget and keep enough
+  // to fill all 16 roster spots at $1 each.
+  function validateTeam(t: SimTeam) {
+    return validateKeeperRoster({
+      startingBudget: t.auctionBudget,
+      totalKeeperSpend: spendFor(t.managerId),
+      keeperCount: selections[t.managerId]?.size ?? 0,
+      rosterSize: ROSTER_SIZE,
+    });
+  }
+
+  const invalidTeams = useMemo(
+    () =>
+      teams.filter((t) => {
+        let spend = 0;
+        for (const pid of selections[t.managerId] ?? [])
+          spend += costById.get(pid) ?? 0;
+        return !validateKeeperRoster({
+          startingBudget: t.auctionBudget,
+          totalKeeperSpend: spend,
+          keeperCount: selections[t.managerId]?.size ?? 0,
+          rosterSize: ROSTER_SIZE,
+        }).ok;
+      }),
+    [teams, selections, costById]
+  );
 
   function toggle(managerId: string, playerId: string) {
     setSelections((prev) => {
@@ -239,7 +270,7 @@ export function KeeperSimulator({
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <button
           onClick={simulate}
-          disabled={loading}
+          disabled={loading || invalidTeams.length > 0}
           className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
         >
           {loading ? "Simulating…" : "Simulate Draft Pool"}
@@ -250,6 +281,13 @@ export function KeeperSimulator({
         >
           Clear all
         </button>
+        {invalidTeams.length > 0 && (
+          <span className="text-sm text-rejected">
+            {invalidTeams.map((t) => t.name).join(", ")}{" "}
+            {invalidTeams.length === 1 ? "is" : "are"} over budget — trim keepers
+            to simulate.
+          </span>
+        )}
         {error && <span className="text-sm text-rejected">{error}</span>}
       </div>
 
@@ -258,12 +296,14 @@ export function KeeperSimulator({
         {teams.map((t) => {
           const sel = selections[t.managerId] ?? new Set<string>();
           const spend = spendFor(t.managerId);
-          const remaining = t.auctionBudget - spend;
+          const v = validateTeam(t);
           const open = expanded.has(t.managerId);
           return (
             <div
               key={t.managerId}
-              className="self-start rounded-md border border-line bg-surface"
+              className={`self-start rounded-md border bg-surface ${
+                v.ok ? "border-line" : "border-rejected/50"
+              }`}
             >
               <button
                 onClick={() => toggleTeam(t.managerId)}
@@ -282,11 +322,16 @@ export function KeeperSimulator({
                 </span>
                 <span className="tabular text-xs text-muted">
                   {sel.size} kept · ${spend} ·{" "}
-                  <span className={remaining < 0 ? "text-rejected" : "text-ink"}>
-                    ${remaining} left
+                  <span className={v.ok ? "text-ink" : "text-rejected"}>
+                    ${v.remainingBudget} left
                   </span>
                 </span>
               </button>
+              {!v.ok && (
+                <p className="border-t border-line px-4 py-2 text-xs text-rejected">
+                  {v.violations[0]}
+                </p>
+              )}
               {open && (
                 <ul className="divide-y divide-line border-t border-line">
                   {t.roster.length === 0 ? (
