@@ -321,7 +321,7 @@ export function KeeperSimulator({
                   <Nameplate alias={t.name} size="sm" />
                 </span>
                 <span className="tabular text-xs text-muted">
-                  {sel.size} kept · ${spend} ·{" "}
+                  {v.emptySpots} to fill · ${spend} ·{" "}
                   <span className={v.ok ? "text-ink" : "text-rejected"}>
                     ${v.remainingBudget} left
                   </span>
@@ -394,7 +394,7 @@ export function KeeperSimulator({
                   >
                     ${b.remaining}
                   </span>{" "}
-                  left · {b.keeperCount} kept
+                  left · {Math.max(0, ROSTER_SIZE - b.keeperCount)} to fill
                 </div>
               </div>
             ))}
