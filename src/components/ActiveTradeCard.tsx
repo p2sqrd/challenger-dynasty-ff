@@ -42,9 +42,13 @@ export function ActiveTradeCard({
   const [amount, setAmount] = useState("0");
   const [direction, setDirection] = useState<CashDirection>("receive");
 
-  const otherSides = myManagerId
-    ? sides.filter((s) => s.managerId !== myManagerId)
-    : [];
+  // A party to the trade enters cash from their own side. A commissioner who
+  // isn't in the trade picks which side the cash is for.
+  const isParty = !!myManagerId && sides.some((s) => s.managerId === myManagerId);
+  const [refId, setRefId] = useState(
+    () => (isParty ? myManagerId! : sides[0]?.managerId) ?? ""
+  );
+  const otherSides = sides.filter((s) => s.managerId !== refId);
   const otherName = otherSides.length === 1 ? otherSides[0].managerName : null;
 
   async function submitCash() {
@@ -59,7 +63,7 @@ export function ActiveTradeCard({
     const res = await fetch(`/api/trades/${tradeId}/cash`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cashAmount: signed }),
+      body: JSON.stringify({ cashAmount: signed, sideManagerId: refId }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -95,6 +99,22 @@ export function ActiveTradeCard({
           <div className="mb-2 text-xs uppercase tracking-wide text-muted">
             Cash
           </div>
+          {!isParty && sides.length > 1 && (
+            <label className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+              Cash for
+              <select
+                value={refId}
+                onChange={(e) => setRefId(e.target.value)}
+                className="rounded border border-line bg-canvas px-2 py-1 text-sm text-ink"
+              >
+                {sides.map((s) => (
+                  <option key={s.managerId} value={s.managerId}>
+                    {s.managerName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <CashDirectionInput
             amount={amount}
             onAmountChange={setAmount}
@@ -114,9 +134,9 @@ export function ActiveTradeCard({
             </button>
           </div>
           <p className="mt-2 text-xs text-muted">
-            No cash in this deal? Leave it at $0. Only one of you needs to enter
-            it — the other side is set automatically, then it goes to the
-            commissioner to approve.
+            No cash in this deal? Leave it at $0. Only one side needs cash
+            entered — the other is set automatically, then it moves to
+            commissioner approval.
           </p>
           {error && <p className="mt-2 text-rejected">{error}</p>}
         </div>

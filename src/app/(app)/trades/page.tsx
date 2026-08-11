@@ -43,13 +43,16 @@ export default async function ProcessTradesPage() {
   );
   const pendingApproval = active.filter((t) => t.status === "pending_approval");
 
-  // What can *this* viewer do with a given trade? The manager who owes cash
-  // enters it; the commissioner approves; everyone else just watches.
+  // What can *this* viewer do with a given trade? A manager in the trade enters
+  // its cash; the commissioner can enter cash for any trade *and* approve.
   function actionFor(t: (typeof active)[number]): TradeAction {
     if (
       t.status === "pending_cash" &&
       manager &&
-      (sidesByTradeId.get(t.id) ?? []).some((s) => s.manager_id === manager.id)
+      ((sidesByTradeId.get(t.id) ?? []).some(
+        (s) => s.manager_id === manager.id
+      ) ||
+        manager.role === "commissioner")
     ) {
       return "enter_cash";
     }
