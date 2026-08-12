@@ -4,6 +4,8 @@ import { loadPostKeeperCards } from "@/lib/rankings";
 import { PageHeader } from "@/components/PageHeader";
 import { RankingReadView } from "@/components/RankingReadView";
 import { RankingEditor } from "@/components/RankingEditor";
+import { RankingsYearTabs } from "@/components/RankingsYearTabs";
+import { Rankings2025 } from "@/components/Rankings2025";
 
 export default async function RankingsPage() {
   const supabase = await createClient();
@@ -51,13 +53,8 @@ export default async function RankingsPage() {
         )
       : [];
 
-  return (
+  const currentYear = (
     <div>
-      <PageHeader
-        title={`${season.year} Rankings`}
-        subtitle="Where every team stands after keepers — and, soon, after the draft."
-      />
-
       <section className="mb-12">
         <div className="mb-4 flex items-center gap-3">
           <h2 className="nameplate-type text-2xl leading-none text-ink">
@@ -94,6 +91,22 @@ export default async function RankingsPage() {
           Coming Soon — once the auction dust settles.
         </p>
       </section>
+    </div>
+  );
+
+  return (
+    <div>
+      <PageHeader
+        title="Rankings"
+        subtitle="Where every team stands after keepers — and, soon, after the draft."
+      />
+
+      <RankingsYearTabs
+        tabs={[
+          { key: "current", label: `${season.year}`, panel: currentYear },
+          { key: "2025", label: "2025", panel: <Rankings2025 /> },
+        ]}
+      />
     </div>
   );
 }
