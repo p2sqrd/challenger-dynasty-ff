@@ -65,6 +65,16 @@ export async function TopBanners() {
     .select("id, player_name, mode, deadline, status")
     .eq("season_id", season.id)
     .eq("status", "active");
+
+  // Post-Keeper rankings banner — only once the authors publish (RLS hands a
+  // draft row to authors too, so check the flag, not mere row existence).
+  const { data: ranking } = await supabase
+    .from("rankings")
+    .select("published")
+    .eq("season_id", season.id)
+    .eq("kind", "post_keeper")
+    .maybeSingle();
+  const rankingsPublished = ranking?.published === true;
   const activeSales = ((sales ?? []) as ActiveSale[]).filter(
     (s) => new Date(s.deadline).getTime() > now
   );
@@ -113,15 +123,17 @@ export async function TopBanners() {
         </Banner>
       )}
 
-      <Banner
-        href="/assistant"
-        accent="--color-approved"
-        icon="✨"
-        cta="Ask Miss Aje"
-      >
-        <span className="font-medium">New:</span> ask Miss Aje about your
-        roster, trades, or the rules — if you can take the heat.
-      </Banner>
+      {rankingsPublished && (
+        <Banner
+          href="/rankings"
+          accent="--color-gold"
+          icon="🏆"
+          cta="View rankings"
+        >
+          <span className="font-medium">Post-Keeper Rankings are out</span> —
+          see where your team lands.
+        </Banner>
+      )}
     </div>
   );
 }
