@@ -65,6 +65,7 @@ const SEEDS: TeamSeed[] = [
       "Sankalp",
       "Vij/Sah/Kalp",
       "VijSahKalp",
+      "Vijkalp",
     ],
   },
   { name: "Harsha", color: "#7FA8D9", active: true, aliases: ["hnukala", "Harsha"] },
