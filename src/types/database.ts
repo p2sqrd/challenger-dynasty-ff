@@ -18,6 +18,15 @@ export type KeeperStatus = "submitted" | "approved" | "rejected";
 export type LedgerReason = "trade" | "keeper" | "starting_budget" | "other";
 export type FireSaleMode = "private" | "public";
 export type FireSaleStatus = "active" | "accepted" | "rejected" | "cancelled";
+export type RankingKind = "post_keeper" | "post_draft";
+
+/** One manager's slot in a ranking — the only author-editable payload. */
+export interface RankingEntry {
+  managerId: string;
+  /** Biggest draft needs — QB/RB/WR/TE plus free-text custom chips. */
+  draftNeeds: string[];
+  explanation: string;
+}
 
 export interface Database {
   public: {
@@ -30,6 +39,7 @@ export interface Database {
           display_name: string;
           email: string;
           role: ManagerRole;
+          is_ranking_author: boolean;
           onboarded_at: string | null;
           created_at: string;
         };
@@ -56,6 +66,30 @@ export interface Database {
         Update: Partial<
           Database["public"]["Tables"]["manager_emails"]["Row"]
         >;
+        Relationships: [];
+      };
+      rankings: {
+        Row: {
+          id: string;
+          season_id: string;
+          kind: RankingKind;
+          entries: RankingEntry[];
+          published: boolean;
+          published_at: string | null;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          season_id: string;
+          kind: RankingKind;
+          entries?: RankingEntry[];
+          published?: boolean;
+          published_at?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["rankings"]["Row"]>;
         Relationships: [];
       };
       keeper_simulations: {

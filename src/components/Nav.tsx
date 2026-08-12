@@ -50,6 +50,7 @@ export async function Nav() {
   const scheduleLuck: NavLink = { href: "/schedule-luck", label: "Schedule Luck", match: "prefix" };
   const askMissAje: NavLink = { href: "/assistant", label: "Ask Miss Aje", match: "prefix" };
   const archiveExtras: NavLink[] = [
+    { href: "/rankings", label: "Rankings", match: "prefix" },
     { href: "/trash-talk", label: "Trash Talk", match: "prefix" },
     standings,
     scheduleLuck,
