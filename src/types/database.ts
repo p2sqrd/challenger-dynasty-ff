@@ -41,6 +41,7 @@ export interface Database {
           email: string;
           role: ManagerRole;
           is_ranking_author: boolean;
+          keepers_unlocked: boolean;
           onboarded_at: string | null;
           created_at: string;
         };

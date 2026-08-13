@@ -47,7 +47,11 @@ export default async function SetMyKeepersPage() {
     : null;
   // Server component: evaluating "now" per request is exactly what we want.
   // eslint-disable-next-line react-hooks/purity
-  const locked = deadline !== null && deadline.getTime() <= Date.now();
+  const deadlinePassed = deadline !== null && deadline.getTime() <= Date.now();
+  // A manager flagged keepers_unlocked can still edit after the deadline (a
+  // one-off correction), while everyone else stays locked.
+  const reopened = deadlinePassed && manager?.keepers_unlocked === true;
+  const locked = deadlinePassed && !reopened;
   const deadlineLabel = season.keeper_deadline
     ? formatLeagueDateTime(season.keeper_deadline)
     : null;
@@ -58,6 +62,15 @@ export default async function SetMyKeepersPage() {
         title="Set My Keepers"
         subtitle="Lock in the players you're carrying into the 2026 auction."
       />
+      {reopened && (
+        <div className="mb-4 rounded-md border border-brand/40 bg-brand/10 p-4 text-sm">
+          <p className="font-medium text-ink">Your keepers were reopened</p>
+          <p className="mt-1 text-muted">
+            After a corrected trade your budget was updated and your previous
+            picks were cleared. Re-select and submit your keepers below.
+          </p>
+        </div>
+      )}
       <MyKeepers
         manager={manager}
         season={season}
