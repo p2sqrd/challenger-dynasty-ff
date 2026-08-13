@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { RULE_PROPOSAL_SUBMISSIONS_CLOSED } from "@/lib/rule-proposals";
 
 interface ActiveSale {
   id: string;
@@ -112,16 +113,26 @@ export async function TopBanners() {
         </Banner>
       )}
 
-      {proposalsOpen && (
-        <Banner
-          href="/rule-proposals"
-          accent="--color-brand"
-          icon="🗳️"
-          cta="Propose & vote"
-        >
-          Propose a 2026 rule change and vote on the league&apos;s proposals.
-        </Banner>
-      )}
+      {proposalsOpen &&
+        (RULE_PROPOSAL_SUBMISSIONS_CLOSED ? (
+          <Banner
+            href="/rule-proposals"
+            accent="--color-brand"
+            icon="🗳️"
+            cta="Vote now"
+          >
+            Vote on the league&apos;s 2026 rule proposals before the deadline.
+          </Banner>
+        ) : (
+          <Banner
+            href="/rule-proposals"
+            accent="--color-brand"
+            icon="🗳️"
+            cta="Propose & vote"
+          >
+            Propose a 2026 rule change and vote on the league&apos;s proposals.
+          </Banner>
+        ))}
 
       {rankingsPublished && (
         <Banner

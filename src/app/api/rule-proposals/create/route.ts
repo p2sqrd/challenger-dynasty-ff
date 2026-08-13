@@ -2,13 +2,21 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentManager } from "@/lib/managers";
+import { RULE_PROPOSAL_SUBMISSIONS_CLOSED } from "@/lib/rule-proposals";
 
-/** Any manager can propose a 2026 rule change, until the keeper deadline. */
+/** Any manager can propose a 2026 rule change, until submissions close. */
 export async function POST(request: Request) {
   const supabase = await createClient();
   const manager = await getCurrentManager(supabase);
   if (!manager) {
     return NextResponse.json({ error: "Not linked to a manager" }, { status: 401 });
+  }
+
+  if (RULE_PROPOSAL_SUBMISSIONS_CLOSED) {
+    return NextResponse.json(
+      { error: "New rule proposals are closed." },
+      { status: 400 }
+    );
   }
 
   const { title, body } = (await request.json().catch(() => ({}))) as {
