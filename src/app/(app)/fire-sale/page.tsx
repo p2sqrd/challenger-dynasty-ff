@@ -6,7 +6,7 @@ import { getManagerAuctionBudget } from "@/lib/budget";
 import { getLeagueRosters } from "@/lib/sleeper/client";
 import { getPlayerNames } from "@/lib/players";
 import { getKeeperPrices } from "@/lib/keeper-price";
-import { maxBidFor } from "@/lib/fire-sale";
+import { maxBidFor, FIRE_SALE_CREATION_LOCKED } from "@/lib/fire-sale";
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
@@ -156,8 +156,16 @@ export default async function FireSalePage() {
         subtitle="Put one of your players on the block. Managers bid auction dollars; you have the final say on the winner."
       />
 
-      {manager && rosterPlayers.length > 0 && (
-        <FireSaleForm rosterPlayers={rosterPlayers} />
+      {FIRE_SALE_CREATION_LOCKED ? (
+        <Notice>
+          Fire Sales are closed until after the draft. Existing bids and roster
+          moves stay on Sleeper — new sales reopen once the auction is done.
+        </Notice>
+      ) : (
+        manager &&
+        rosterPlayers.length > 0 && (
+          <FireSaleForm rosterPlayers={rosterPlayers} />
+        )
       )}
 
       <div className="mt-8 space-y-4">

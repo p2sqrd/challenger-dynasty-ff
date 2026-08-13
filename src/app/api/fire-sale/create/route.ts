@@ -5,12 +5,20 @@ import { getCurrentManager } from "@/lib/managers";
 import { getLeagueRosters } from "@/lib/sleeper/client";
 import { getPlayerNames } from "@/lib/players";
 import { notifyAll } from "@/lib/notify";
+import { FIRE_SALE_CREATION_LOCKED } from "@/lib/fire-sale";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
   const manager = await getCurrentManager(supabase);
   if (!manager) {
     return NextResponse.json({ error: "Not linked to a manager" }, { status: 401 });
+  }
+
+  if (FIRE_SALE_CREATION_LOCKED) {
+    return NextResponse.json(
+      { error: "Fire Sales are closed until after the draft." },
+      { status: 400 }
+    );
   }
 
   const { playerId, mode, minBid, deadline } = (await request
