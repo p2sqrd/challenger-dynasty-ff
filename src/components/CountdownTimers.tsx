@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { formatLeagueDateTime } from "@/lib/datetime";
 
 interface Timer {
   label: string;
@@ -131,15 +132,7 @@ function TimerCard({
       )}
 
       <div className="mt-4 text-xs text-muted">
-        {valid
-          ? new Date(timer.target!).toLocaleString(undefined, {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-            })
-          : "Date to be announced"}
+        {valid ? formatLeagueDateTime(timer.target!) : "Date to be announced"}
       </div>
     </div>
   );

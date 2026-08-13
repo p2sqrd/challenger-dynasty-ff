@@ -3,6 +3,13 @@ import { resolveTeam } from "@/lib/teams";
 /** The fixed palette managers can react to comments with. */
 export const REACTION_EMOJIS = ["👍", "❤️", "😂", "🔥", "🎯", "👎"] as const;
 
+/**
+ * New rule proposals are closed for 2026 — the proposal window ended ahead of
+ * the keeper deadline. Voting on the proposals already on the board continues
+ * until the deadline. Flip to `false` to reopen submissions.
+ */
+export const RULE_PROPOSAL_SUBMISSIONS_CLOSED = true;
+
 export type ProposalStatus = "open" | "passed" | "failed";
 
 export interface Voter {

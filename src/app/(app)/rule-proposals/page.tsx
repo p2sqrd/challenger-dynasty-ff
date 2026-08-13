@@ -4,9 +4,11 @@ import {
   buildProposals,
   buildComments,
   majorityThreshold,
+  RULE_PROPOSAL_SUBMISSIONS_CLOSED,
   type ProposalStatus,
   type Voter,
 } from "@/lib/rule-proposals";
+import { formatLeagueDateTime } from "@/lib/datetime";
 import { PageHeader } from "@/components/PageHeader";
 import { RuleProposalForm } from "@/components/RuleProposalForm";
 import { RuleProposalVote } from "@/components/RuleProposalVote";
@@ -85,14 +87,8 @@ export default async function RuleProposalsPage() {
   // Server component: "now" per request is intended.
   // eslint-disable-next-line react-hooks/purity
   const locked = deadline !== null && deadline.getTime() <= Date.now();
-  const deadlineLabel = deadline
-    ? deadline.toLocaleString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      })
+  const deadlineLabel = season.keeper_deadline
+    ? formatLeagueDateTime(season.keeper_deadline)
     : null;
 
   const [{ data: managers }, { data: ledger }, { data: rawProposals }] =
@@ -163,6 +159,18 @@ export default async function RuleProposalsPage() {
               Voting closed{deadlineLabel ? ` on ${deadlineLabel}` : ""}. Results
               are final.
             </span>
+          ) : RULE_PROPOSAL_SUBMISSIONS_CLOSED ? (
+            <span className="text-muted">
+              New proposals are closed.{" "}
+              {deadlineLabel ? (
+                <>
+                  Voting continues until the keeper deadline —{" "}
+                  <span className="text-ink">{deadlineLabel}</span>.
+                </>
+              ) : (
+                "Voting continues until the keeper deadline."
+              )}
+            </span>
           ) : deadlineLabel ? (
             <span className="text-muted">
               Proposing &amp; voting close at the keeper deadline —{" "}
@@ -174,12 +182,17 @@ export default async function RuleProposalsPage() {
             </span>
           )}
         </div>
-        {manager && !locked && <RuleProposalForm />}
+        {manager && !locked && !RULE_PROPOSAL_SUBMISSIONS_CLOSED && (
+          <RuleProposalForm />
+        )}
       </div>
 
       {proposals.length === 0 ? (
         <Notice>
-          No proposals yet. {locked ? "" : "Be the first to propose a rule change."}
+          No proposals yet.{" "}
+          {locked || RULE_PROPOSAL_SUBMISSIONS_CLOSED
+            ? ""
+            : "Be the first to propose a rule change."}
         </Notice>
       ) : (
         <div className="space-y-4">

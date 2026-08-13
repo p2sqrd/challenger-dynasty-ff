@@ -6,6 +6,7 @@ import { unvotedProposalCount } from "@/lib/keeper-gate";
 import { getLeagueRosters } from "@/lib/sleeper/client";
 import { getPlayerNames, getPlayerPositions } from "@/lib/players";
 import { resolveTeam } from "@/lib/teams";
+import { formatLeagueDateTime } from "@/lib/datetime";
 import { ROSTER_SIZE } from "@/lib/rules/budget-validation";
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
@@ -47,14 +48,8 @@ export default async function SetMyKeepersPage() {
   // Server component: evaluating "now" per request is exactly what we want.
   // eslint-disable-next-line react-hooks/purity
   const locked = deadline !== null && deadline.getTime() <= Date.now();
-  const deadlineLabel = deadline
-    ? deadline.toLocaleString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      })
+  const deadlineLabel = season.keeper_deadline
+    ? formatLeagueDateTime(season.keeper_deadline)
     : null;
 
   return (
