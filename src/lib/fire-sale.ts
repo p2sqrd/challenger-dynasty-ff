@@ -1,4 +1,11 @@
 /**
+ * Fire Sales are closed until the draft is done — no new sales can be created
+ * in the run-up to (or during) the auction. Flip to `false` to reopen them
+ * once the draft is complete.
+ */
+export const FIRE_SALE_CREATION_LOCKED = true;
+
+/**
  * The keeper rule keeps every manager's auction budget between $125 and $275.
  * In a Fire Sale that bounds the bids:
  *  - a buyer spends money, so they can't drop below $125 → max = budget − 125
