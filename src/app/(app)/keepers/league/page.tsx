@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { unvotedCountByManager } from "@/lib/keeper-gate";
+import { getManagerAuctionBudget } from "@/lib/budget";
 import { PageHeader } from "@/components/PageHeader";
 import { AllKeepers, type LeagueRoster } from "@/components/AllKeepers";
 
@@ -8,7 +9,7 @@ export default async function LeagueKeepersPage() {
 
   const { data: season } = await supabase
     .from("seasons")
-    .select("id, year, keeper_deadline")
+    .select("id, year, keeper_deadline, starting_budget")
     .eq("status", "active")
     .single();
 
@@ -65,18 +66,29 @@ export default async function LeagueKeepersPage() {
     keepersByManager.set(k.manager_id, list);
   }
 
-  const rosters: LeagueRoster[] = (managers ?? [])
-    .filter((m) => activeIds.has(m.id))
-    .map((m) => ({
-      managerName: m.display_name,
-      players: (keepersByManager.get(m.id) ?? []).sort(
-        (a, b) => b.price - a.price
-      ),
-      pendingVote:
-        (keepersByManager.get(m.id)?.length ?? 0) > 0 &&
-        (unvotedByManager.get(m.id) ?? 0) > 0,
-    }))
-    .sort((a, b) => a.managerName.localeCompare(b.managerName));
+  const rosters: LeagueRoster[] = (
+    await Promise.all(
+      (managers ?? [])
+        .filter((m) => activeIds.has(m.id))
+        .map(async (m) => ({
+          managerName: m.display_name,
+          // Trade-adjusted auction budget they bring in, so remaining =
+          // budget − keeper spend reflects any cash traded away.
+          auctionBudget: await getManagerAuctionBudget(
+            supabase,
+            season.id,
+            m.id,
+            season.starting_budget
+          ),
+          players: (keepersByManager.get(m.id) ?? []).sort(
+            (a, b) => b.price - a.price
+          ),
+          pendingVote:
+            (keepersByManager.get(m.id)?.length ?? 0) > 0 &&
+            (unvotedByManager.get(m.id) ?? 0) > 0,
+        }))
+    )
+  ).sort((a, b) => a.managerName.localeCompare(b.managerName));
 
   return (
     <div>
