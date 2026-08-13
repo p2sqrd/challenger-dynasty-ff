@@ -15,6 +15,7 @@ export type KeeperPriceRule =
   | "waiver_first_year"
   | "drafted_and_dropped";
 export type KeeperStatus = "submitted" | "approved" | "rejected";
+export type VoteChoice = "yes" | "no" | "abstain";
 export type LedgerReason = "trade" | "keeper" | "starting_budget" | "other";
 export type FireSaleMode = "private" | "public";
 export type FireSaleStatus = "active" | "accepted" | "rejected" | "cancelled";
@@ -267,14 +268,14 @@ export interface Database {
         Row: {
           proposal_id: string;
           manager_id: string;
-          vote: boolean;
+          choice: VoteChoice;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           proposal_id: string;
           manager_id: string;
-          vote: boolean;
+          choice: VoteChoice;
           created_at?: string;
           updated_at?: string;
         };

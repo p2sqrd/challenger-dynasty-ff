@@ -36,7 +36,7 @@ async function getAdoptedProposals(): Promise<AdoptedProposal[]> {
       supabase.from("budget_ledger").select("season_id, manager_id"),
       supabase
         .from("rule_proposal_votes")
-        .select("proposal_id, manager_id, vote")
+        .select("proposal_id, manager_id, choice")
         .in(
           "proposal_id",
           rawProposals.map((p) => p.id)
