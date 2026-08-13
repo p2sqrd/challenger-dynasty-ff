@@ -43,10 +43,12 @@ export async function POST(request: Request) {
   }
 
   // Keepers lock at the deadline, not on commissioner approval — once it
-  // passes, no more edits.
+  // passes, no more edits. A manager flagged keepers_unlocked is exempt (a
+  // one-off correction), so they can still re-submit past the deadline.
   if (
     season.keeper_deadline &&
-    new Date(season.keeper_deadline).getTime() <= Date.now()
+    new Date(season.keeper_deadline).getTime() <= Date.now() &&
+    !manager.keepers_unlocked
   ) {
     return NextResponse.json(
       { error: "The keeper deadline has passed — selections are locked." },
