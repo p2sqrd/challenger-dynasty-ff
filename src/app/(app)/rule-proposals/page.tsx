@@ -110,7 +110,7 @@ export default async function RuleProposalsPage() {
   const { data: votes } = proposalIds.length
     ? await supabase
         .from("rule_proposal_votes")
-        .select("proposal_id, manager_id, vote")
+        .select("proposal_id, manager_id, choice")
         .in("proposal_id", proposalIds)
     : { data: [] };
 
@@ -149,7 +149,7 @@ export default async function RuleProposalsPage() {
     <div>
       <PageHeader
         title={`${season.year} Rule Proposals`}
-        subtitle={`Propose a rule change and vote Yes or No. A proposal passes if at least ${threshold} of the ${activeCount} managers vote Yes.`}
+        subtitle={`Vote Yes, No, or Abstain on each proposal. A proposal passes if at least ${threshold} of the ${activeCount} managers vote Yes.`}
       />
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -241,12 +241,15 @@ export default async function RuleProposalsPage() {
                   <span className="tabular font-medium text-rejected">
                     No {p.no.length}
                   </span>
+                  <span className="tabular font-medium text-pending">
+                    Abstain {p.abstain.length}
+                  </span>
                   <span className="text-xs text-muted">
                     {p.yes.length}/{threshold} needed to pass
                   </span>
                 </div>
 
-                <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
                   <div>
                     <div className="mb-1 text-xs uppercase tracking-wide text-approved">
                       Yes
@@ -259,12 +262,18 @@ export default async function RuleProposalsPage() {
                     </div>
                     <VoterList voters={p.no} />
                   </div>
+                  <div>
+                    <div className="mb-1 text-xs uppercase tracking-wide text-pending">
+                      Abstain
+                    </div>
+                    <VoterList voters={p.abstain} />
+                  </div>
                 </div>
 
                 {((manager && !locked) || manager?.role === "commissioner") && (
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
                     {manager && !locked ? (
-                      <RuleProposalVote proposalId={p.id} myVote={p.myVote} />
+                      <RuleProposalVote proposalId={p.id} myChoice={p.myChoice} />
                     ) : (
                       <span />
                     )}

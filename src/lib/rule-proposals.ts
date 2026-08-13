@@ -1,4 +1,7 @@
 import { resolveTeam } from "@/lib/teams";
+import type { VoteChoice } from "@/types/database";
+
+export type { VoteChoice };
 
 /** The fixed palette managers can react to comments with. */
 export const REACTION_EMOJIS = ["👍", "❤️", "😂", "🔥", "🎯", "👎"] as const;
@@ -27,8 +30,9 @@ export interface ProposalWithTally {
   createdAt: string;
   yes: Voter[];
   no: Voter[];
-  /** The viewer's current vote, if any (true = yes, false = no). */
-  myVote: boolean | null;
+  abstain: Voter[];
+  /** The viewer's current choice, if they've cast one. */
+  myChoice: VoteChoice | null;
   status: ProposalStatus;
   /** True when the status was pinned by a commissioner override. */
   overridden: boolean;
@@ -66,7 +70,7 @@ export interface RawProposal {
 export interface RawVote {
   proposal_id: string;
   manager_id: string;
-  vote: boolean;
+  choice: VoteChoice;
 }
 
 /**
@@ -103,13 +107,17 @@ export function buildProposals({
 
   return proposals.map((p) => {
     const rows = votesByProposal.get(p.id) ?? [];
-    const yes = rows.filter((r) => r.vote).map((r) => voterOf(r.manager_id));
-    const no = rows.filter((r) => !r.vote).map((r) => voterOf(r.manager_id));
-    yes.sort((a, b) => a.name.localeCompare(b.name));
-    no.sort((a, b) => a.name.localeCompare(b.name));
+    const pick = (choice: VoteChoice) =>
+      rows
+        .filter((r) => r.choice === choice)
+        .map((r) => voterOf(r.manager_id))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    const yes = pick("yes");
+    const no = pick("no");
+    const abstain = pick("abstain");
 
     const mine = viewerId
-      ? rows.find((r) => r.manager_id === viewerId)?.vote ?? null
+      ? rows.find((r) => r.manager_id === viewerId)?.choice ?? null
       : null;
 
     // A commissioner override pins the outcome regardless of the tally or
@@ -129,7 +137,8 @@ export function buildProposals({
       createdAt: p.created_at,
       yes,
       no,
-      myVote: mine,
+      abstain,
+      myChoice: mine,
       status,
       overridden,
     };

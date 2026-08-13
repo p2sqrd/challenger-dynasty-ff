@@ -4,6 +4,7 @@ import { getCurrentManager } from "@/lib/managers";
 import { getManagerAuctionBudget } from "@/lib/budget";
 import { resolveTeam } from "@/lib/teams";
 import { STANDINGS } from "@/lib/standings-data";
+import type { VoteChoice } from "@/types/database";
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
 import { TopBanners } from "@/components/TopBanners";
@@ -75,8 +76,10 @@ export default async function HomePage() {
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] as { id: string; title: string }[] }),
     season
-      ? supabase.from("rule_proposal_votes").select("proposal_id, vote")
-      : Promise.resolve({ data: [] as { proposal_id: string; vote: boolean }[] }),
+      ? supabase.from("rule_proposal_votes").select("proposal_id, choice")
+      : Promise.resolve({
+          data: [] as { proposal_id: string; choice: VoteChoice }[],
+        }),
     season
       ? supabase
           .from("fire_sales")
@@ -122,11 +125,12 @@ export default async function HomePage() {
     .sort((a, b) => b.w - a.w || a.l - b.l);
 
   // Rule-proposal yes/no tallies.
-  const tally = new Map<string, { yes: number; no: number }>();
+  const tally = new Map<string, { yes: number; no: number; abstain: number }>();
   for (const v of votes ?? []) {
-    const t = tally.get(v.proposal_id) ?? { yes: 0, no: 0 };
-    if (v.vote) t.yes++;
-    else t.no++;
+    const t = tally.get(v.proposal_id) ?? { yes: 0, no: 0, abstain: 0 };
+    if (v.choice === "yes") t.yes++;
+    else if (v.choice === "no") t.no++;
+    else t.abstain++;
     tally.set(v.proposal_id, t);
   }
 
@@ -240,7 +244,7 @@ export default async function HomePage() {
           ) : (
             <ul className="space-y-2">
               {(proposals ?? []).slice(0, 4).map((p) => {
-                const t = tally.get(p.id) ?? { yes: 0, no: 0 };
+                const t = tally.get(p.id) ?? { yes: 0, no: 0, abstain: 0 };
                 return (
                   <li
                     key={p.id}
@@ -252,6 +256,12 @@ export default async function HomePage() {
                     <span className="shrink-0 tabular text-xs">
                       <span className="text-approved">✓ {t.yes}</span>{" "}
                       <span className="text-rejected">✗ {t.no}</span>
+                      {t.abstain > 0 && (
+                        <>
+                          {" "}
+                          <span className="text-pending">– {t.abstain}</span>
+                        </>
+                      )}
                     </span>
                   </li>
                 );

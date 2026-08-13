@@ -35,15 +35,15 @@ describe("buildProposals", () => {
     ["m3", "sprtzfan17"],
   ]);
 
-  it("splits voters into yes/no with the viewer's own vote surfaced", () => {
+  it("splits voters into yes/no/abstain with the viewer's own choice surfaced", () => {
     const [p] = buildProposals({
       proposals: [
         { id: "p1", title: "Bench to starter", body: null, author_id: "m1", created_at: "2026-01-01" },
       ],
       votes: [
-        { proposal_id: "p1", manager_id: "m1", vote: true },
-        { proposal_id: "p1", manager_id: "m2", vote: true },
-        { proposal_id: "p1", manager_id: "m3", vote: false },
+        { proposal_id: "p1", manager_id: "m1", choice: "yes" },
+        { proposal_id: "p1", manager_id: "m2", choice: "yes" },
+        { proposal_id: "p1", manager_id: "m3", choice: "abstain" },
       ],
       nameById,
       viewerId: "m3",
@@ -52,10 +52,36 @@ describe("buildProposals", () => {
     });
 
     expect(p.yes.map((v) => v.name).sort()).toEqual(["Omar", "Pranav"]);
-    expect(p.no.map((v) => v.name)).toEqual(["Hirsch"]);
-    expect(p.myVote).toBe(false);
+    expect(p.no).toEqual([]);
+    expect(p.abstain.map((v) => v.name)).toEqual(["Hirsch"]);
+    expect(p.myChoice).toBe("abstain");
     expect(p.authorName).toBe("Pranav");
     expect(p.status).toBe("open");
+  });
+
+  it("counts an abstain as neither yes nor no in the pass tally", () => {
+    const votes = [
+      ...Array.from({ length: 6 }, (_, i) => ({
+        proposal_id: "p1",
+        manager_id: `y${i}`,
+        choice: "yes" as const,
+      })),
+      { proposal_id: "p1", manager_id: "a1", choice: "abstain" as const },
+    ];
+    const [p] = buildProposals({
+      proposals: [
+        { id: "p1", title: "x", body: null, author_id: "m1", created_at: "2026-01-01" },
+      ],
+      votes,
+      nameById: new Map(),
+      viewerId: null,
+      threshold: 7,
+      locked: true,
+    });
+    // 6 yes + 1 abstain, threshold 7 → abstain doesn't get it over the line.
+    expect(p.yes).toHaveLength(6);
+    expect(p.abstain).toHaveLength(1);
+    expect(p.status).toBe("failed");
   });
 
   it("lets a commissioner override pin the status regardless of votes or lock", () => {
@@ -70,7 +96,7 @@ describe("buildProposals", () => {
           override_status: "passed",
         },
       ],
-      votes: [{ proposal_id: "p1", manager_id: "m2", vote: false }],
+      votes: [{ proposal_id: "p1", manager_id: "m2", choice: "no" }],
       nameById,
       viewerId: null,
       threshold: 7,
@@ -84,7 +110,7 @@ describe("buildProposals", () => {
     const votes = Array.from({ length: 7 }, (_, i) => ({
       proposal_id: "p1",
       manager_id: `y${i}`,
-      vote: true,
+      choice: "yes" as const,
     }));
     const [p] = buildProposals({
       proposals: [
@@ -98,7 +124,7 @@ describe("buildProposals", () => {
     });
     expect(p.yes).toHaveLength(7);
     expect(p.status).toBe("passed");
-    expect(p.myVote).toBeNull();
+    expect(p.myChoice).toBeNull();
   });
 });
 

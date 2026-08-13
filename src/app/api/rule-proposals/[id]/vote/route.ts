@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentManager } from "@/lib/managers";
+import type { VoteChoice } from "@/types/database";
 
-/** Cast (or change) a single Yes/No vote on a proposal, until the deadline. */
+const CHOICES: VoteChoice[] = ["yes", "no", "abstain"];
+
+/** Cast (or change) a Yes/No/Abstain choice on a proposal, until the deadline. */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -15,9 +18,14 @@ export async function POST(
     return NextResponse.json({ error: "Not linked to a manager" }, { status: 401 });
   }
 
-  const { vote } = (await request.json().catch(() => ({}))) as { vote?: boolean };
-  if (typeof vote !== "boolean") {
-    return NextResponse.json({ error: "Vote must be yes or no." }, { status: 400 });
+  const { choice } = (await request.json().catch(() => ({}))) as {
+    choice?: VoteChoice;
+  };
+  if (!choice || !CHOICES.includes(choice)) {
+    return NextResponse.json(
+      { error: "Choice must be yes, no, or abstain." },
+      { status: 400 }
+    );
   }
 
   const { data: proposal } = await supabase
@@ -46,7 +54,7 @@ export async function POST(
     {
       proposal_id: id,
       manager_id: manager.id,
-      vote,
+      choice,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "proposal_id,manager_id" }

@@ -275,7 +275,7 @@ export function KeeperSelectionForm({
           <div className="mt-3 rounded-md border border-pending/40 bg-pending/10 p-3 text-center text-xs">
             <p className="font-medium text-pending">Vote required first</p>
             <p className="mt-1 text-muted">
-              Vote on {unvotedCount} open rule proposal
+              Vote Yes, No, or Abstain on {unvotedCount} open rule proposal
               {unvotedCount === 1 ? "" : "s"} before your keepers can be
               submitted.
             </p>
