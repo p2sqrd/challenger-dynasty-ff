@@ -3,6 +3,8 @@ import { PlayerAvatar } from "./PlayerAvatar";
 
 export interface LeagueRoster {
   managerName: string;
+  /** Trade-adjusted auction budget the manager brings into the auction. */
+  auctionBudget: number;
   players: { playerId: string; playerName: string; price: number }[];
   /** True when this manager hasn't voted on every open proposal — their
    *  keepers won't be accepted until they do. */
@@ -52,6 +54,7 @@ export function AllKeepers({
     <div className="grid gap-4 sm:grid-cols-2">
       {rosters.map((r) => {
         const total = r.players.reduce((sum, p) => sum + p.price, 0);
+        const remaining = r.auctionBudget - total;
         return (
           <div
             key={r.managerName}
@@ -66,9 +69,24 @@ export function AllKeepers({
                   </span>
                 )}
                 <span className="tabular text-xs text-muted">
-                  {r.players.length} kept · ${total}
+                  {r.players.length} kept
                 </span>
               </div>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+              <span className="tabular text-muted">
+                Spent <span className="font-medium text-ink">${total}</span>
+              </span>
+              <span className="tabular text-muted">
+                Remaining{" "}
+                <span
+                  className={`font-medium ${
+                    remaining < 0 ? "text-rejected" : "text-approved"
+                  }`}
+                >
+                  ${remaining}
+                </span>
+              </span>
             </div>
             {r.players.length === 0 ? (
               <p className="mt-3 text-sm text-muted">No keepers.</p>
