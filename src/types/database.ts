@@ -94,6 +94,49 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["rankings"]["Row"]>;
         Relationships: [];
       };
+      rematch_drafts: {
+        Row: {
+          id: string;
+          season_id: string;
+          is_test: boolean;
+          label: string;
+          /** Manager ids in finishing order, 1st → 12th. */
+          order_manager_ids: string[];
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          season_id: string;
+          is_test?: boolean;
+          label: string;
+          order_manager_ids?: string[];
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["rematch_drafts"]["Row"]>;
+        Relationships: [];
+      };
+      rematch_picks: {
+        Row: {
+          id: string;
+          draft_id: string;
+          pick_number: number;
+          week: number;
+          picker_manager_id: string;
+          opponent_manager_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          draft_id: string;
+          pick_number: number;
+          week: number;
+          picker_manager_id: string;
+          opponent_manager_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["rematch_picks"]["Row"]>;
+        Relationships: [];
+      };
       keeper_simulations: {
         Row: {
           id: string;
