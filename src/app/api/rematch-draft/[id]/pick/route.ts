@@ -29,9 +29,13 @@ export async function POST(
   }
   const { order, picks, aliasOf } = loaded;
 
-  // You are always yourself: there is no picking on another team's behalf.
+  // Two identities from here on: the actor is whoever clicked, the subject is
+  // the team whose turn is being filled. They're the same for everyone except
+  // a manager holding can_pick_for_others, who may take the turn of whoever is
+  // on the clock so a quiet week doesn't stall the board.
   const actorId = manager.id;
-  if (!order.includes(actorId)) {
+  const byProxy = manager.can_pick_for_others === true;
+  if (!order.includes(actorId) && !byProxy) {
     return NextResponse.json(
       { error: "Your team isn't in this draft." },
       { status: 403 }
@@ -42,12 +46,13 @@ export async function POST(
   if (clockId === null) {
     return NextResponse.json({ error: "The draft is complete." }, { status: 400 });
   }
-  if (clockId !== actorId) {
+  if (clockId !== actorId && !byProxy) {
     return NextResponse.json(
       { error: `It's ${aliasOf(clockId)}'s pick, not yours.` },
       { status: 400 }
     );
   }
+  const madeForSomeoneElse = clockId !== actorId;
 
   if (!opponentManagerId || typeof week !== "number") {
     return NextResponse.json(
@@ -57,9 +62,11 @@ export async function POST(
   }
 
   // Re-validate server-side — never trust the client's idea of what's legal.
-  // This is also what enforces the lookahead guard: without it a third of
-  // drafts dead-end with two teams unable to fill their last weeks.
-  const option = legalPicks(order, picks, actorId, aliasOf).find(
+  // Against the team on the clock, not the caller: on a proxy pick those
+  // differ, and the pick belongs to the team either way. This is also what
+  // enforces the lookahead guard: without it a third of drafts dead-end with
+  // two teams unable to fill their last weeks.
+  const option = legalPicks(order, picks, clockId, aliasOf).find(
     (p) => p.opponentManagerId === opponentManagerId && p.week === week
   );
   if (!option) {
@@ -76,8 +83,11 @@ export async function POST(
     draft_id: id,
     pick_number: picks.length + 1,
     week,
-    picker_manager_id: actorId,
+    // The pick belongs to the team on the clock however it got made; who
+    // clicked is recorded beside it, and only when that isn't them.
+    picker_manager_id: clockId,
     opponent_manager_id: opponentManagerId,
+    made_by_manager_id: madeForSomeoneElse ? actorId : null,
   });
 
   if (error) {
@@ -90,23 +100,42 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Put the next team on the clock.
   const nextUp = onTheClock(order, [
     ...picks,
     {
       pickNumber: picks.length + 1,
       week,
-      pickerManagerId: actorId,
+      pickerManagerId: clockId,
       opponentManagerId,
     },
   ]);
+  const link = `/rematch-draft/${id}`;
+  // The board shows the matchup as the team's, so the ping credits the team.
+  const took = `${aliasOf(clockId)} took ${aliasOf(
+    opponentManagerId
+  )} for Week ${week}.`;
+
+  // Nobody should learn from the board that a matchup was chosen for them.
+  // At a snake turn the same team picks twice in a row, so it can be both the
+  // team picked for and the team next up — one notification in that case.
+  if (madeForSomeoneElse) {
+    const alsoNext = nextUp === clockId;
+    await notifyManager(admin, clockId, {
+      title: alsoNext ? "Your pick was made — you're up again" : "Your pick was made for you",
+      body:
+        `${aliasOf(actorId)} picked for you: ${took}` +
+        (alsoNext ? " You're on the clock again." : ""),
+      link,
+    });
+    if (alsoNext) return NextResponse.json({ ok: true });
+  }
+
+  // Put the next team on the clock.
   if (nextUp) {
     await notifyManager(admin, nextUp, {
       title: "You're on the clock",
-      body: `${aliasOf(actorId)} took ${aliasOf(
-        opponentManagerId
-      )} for Week ${week}. Pick your rematch.`,
-      link: `/rematch-draft/${id}`,
+      body: `${took} Pick your rematch.`,
+      link,
     });
   }
 

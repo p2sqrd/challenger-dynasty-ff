@@ -22,8 +22,8 @@ same room.
   picks at all.
 - **Illegal:** yourself; a team you already face in one of the other two weeks;
   a week either side has already filled.
-- **You are always yourself.** There is no picking on another team's behalf,
-  anywhere in the app.
+- **You pick for yourself** — with one exception, below: the person running the
+  draft can make the pick for whoever is on the clock.
 
 ## Forced matchups assign themselves
 
@@ -84,6 +84,37 @@ breaking a tie by hand. Here draft order genuinely matters.)
 The same constraint idea opens the board: `rematch_drafts_live_idx` is unique on
 `season_id`, so if two people first-load the page at the same moment, the loser
 of the insert race re-reads the winner's board instead of creating a second one.
+
+## The commish can pick for the team on the clock
+
+Twelve people, three rounds, and the board can't advance past whoever isn't
+answering. So one manager can take the turn of whoever is on the clock.
+
+It's a per-manager flag, `managers.can_pick_for_others`, not the
+`commissioner` role — that role carries trade approvals, deadline setting and
+rule-proposal overrides, and this is none of those. Same shape as
+`is_ranking_author` in `0015_rankings.sql`: draft duty moves without touching
+league permissions. Pranav (`ppradhan`) holds it.
+
+Nothing about the pick itself changes. It's stored under
+`picker_manager_id = the team on the clock`, validated against *their* options
+with the same lookahead guard, and claims turn N through the same latch. What's
+different is only:
+
+- `rematch_picks.made_by_manager_id` records who clicked, and is null on a
+  team's own pick — so "was this made for them?" is one non-null check and the
+  rows written before the column existed need no backfill.
+- The week card shows a ⚑ beside the pick number, titled with who made it.
+- The team is notified that their pick was made for them, on top of the usual
+  next-up ping. At a snake turn a team can be both — picked for, and up again
+  immediately — and gets one notification saying so rather than two.
+- The room warns the person doing it: a callout naming the team, their options
+  rather than yours, greyed-out cards phrased in their name
+  (`legalPicks`' `selfLabel`), and a confirm before it goes through.
+
+Everyone without the flag is exactly where they were: the same
+`It's <name>'s pick, not yours.` on any turn that isn't theirs, and a `/state`
+payload with no legal picks in it.
 
 ## Notifications
 
@@ -154,6 +185,7 @@ committed, so production code never carries a test mode.
 | `src/app/(app)/rematch-draft/` | Opens-or-redirects entry page, plus the room. |
 | `src/components/RematchDraftRoom.tsx` | The room UI. |
 | `supabase/migrations/0018_rematch_draft.sql` | Tables, the one-board-per-season index, the turn latch, RLS. |
+| `supabase/migrations/0019_rematch_draft_proxy.sql` | `managers.can_pick_for_others` and `rematch_picks.made_by_manager_id`. |
 
 `rematch_drafts.is_test` is a dead column from the first cut of this feature,
 which had rehearsal boards inside the app. Nothing writes it any more; it stays

@@ -33,6 +33,11 @@ export interface DraftMatchupView {
   pickNumber: number | null;
   /** Forced by the picks already made rather than chosen. */
   auto: boolean;
+  /**
+   * Who made this pick, when it wasn't the picker's own doing. Null on a
+   * team's own pick and on anything the board assigned itself.
+   */
+  byProxyAlias: string | null;
   week: number;
   pickerId: string;
   pickerAlias: string;
@@ -52,10 +57,21 @@ export interface DraftStateView {
   complete: boolean;
   onTheClockId: string | null;
   onTheClockAlias: string | null;
-  /** The caller's own manager id — you only ever pick for your own team. */
+  /** The caller's own manager id. */
   actingAsId: string | null;
+  /** The caller may make the pick for whoever is on the clock. */
+  canPickForOthers: boolean;
+  /**
+   * The team the caller is about to pick *for*, when that isn't the caller.
+   * Null the rest of the time — including for the flag holder on their own
+   * turn, so the room only warns when it's really somebody else's pick.
+   */
+  pickingFor: { managerId: string; alias: string } | null;
   canPick: boolean;
-  /** Only populated when the caller is the one on the clock. */
+  /**
+   * The options for the team on the clock, and only when the caller may take
+   * them — their own turn, or a proxy picker stepping in.
+   */
   legal: LegalPick[];
 }
 
@@ -63,6 +79,13 @@ export interface LoadedDraft {
   draft: Database["public"]["Tables"]["rematch_drafts"]["Row"];
   picks: RematchPick[];
   order: string[];
+  /**
+   * Pick number → the manager who actually clicked, for the picks somebody
+   * made on another team's behalf. Kept beside the picks rather than on
+   * RematchPick so the rules engine stays free of the idea: the board folds
+   * synthetic picks of its own, and "who clicked" means nothing for those.
+   */
+  proxyByPickNumber: Map<number, string>;
   aliasOf: (managerId: string) => string;
 }
 
@@ -194,7 +217,9 @@ export async function loadDraft(
   const [{ data: rows }, { data: managers }] = await Promise.all([
     admin
       .from("rematch_picks")
-      .select("pick_number, week, picker_manager_id, opponent_manager_id")
+      .select(
+        "pick_number, week, picker_manager_id, opponent_manager_id, made_by_manager_id"
+      )
       .eq("draft_id", draftId)
       .order("pick_number"),
     admin.from("managers").select("id, display_name"),
@@ -211,6 +236,11 @@ export async function loadDraft(
       pickerManagerId: r.picker_manager_id,
       opponentManagerId: r.opponent_manager_id,
     })),
+    proxyByPickNumber: new Map(
+      (rows ?? [])
+        .filter((r) => r.made_by_manager_id !== null)
+        .map((r) => [r.pick_number, r.made_by_manager_id!])
+    ),
     aliasOf: (managerId: string) => nameById.get(managerId) ?? "—",
   };
 }
@@ -218,26 +248,47 @@ export async function loadDraft(
 /**
  * Derive everything the room renders. `actingAsId` is the caller's manager id,
  * or null when whoever is looking isn't a manager in this draft.
+ *
+ * `canPickForOthers` widens that: a caller holding the flag gets the options
+ * belonging to whoever is on the clock, not their own. It's the one place in
+ * the app where the board you're shown isn't yours, so it's opt-in per caller
+ * and the room says whose turn it's filling in.
  */
 export function toStateView(
   loaded: LoadedDraft,
-  actingAsId: string | null
+  actingAsId: string | null,
+  opts: { canPickForOthers?: boolean } = {}
 ): DraftStateView {
-  const { draft, order, picks, aliasOf } = loaded;
+  const { draft, order, picks, proxyByPickNumber, aliasOf } = loaded;
   const board = buildBoard(order, picks);
   const clockId = onTheClock(order, picks);
+  const canPickForOthers = opts.canPickForOthers === true;
 
-  const matchup = (m: Matchup | RematchPick): DraftMatchupView => ({
-    pickNumber: m.pickNumber,
-    auto: "auto" in m ? m.auto : false,
-    week: m.week,
-    pickerId: m.pickerManagerId,
-    pickerAlias: aliasOf(m.pickerManagerId),
-    opponentId: m.opponentManagerId,
-    opponentAlias: aliasOf(m.opponentManagerId),
-  });
+  const matchup = (m: Matchup | RematchPick): DraftMatchupView => {
+    const madeBy =
+      m.pickNumber === null ? undefined : proxyByPickNumber.get(m.pickNumber);
+    return {
+      pickNumber: m.pickNumber,
+      auto: "auto" in m ? m.auto : false,
+      byProxyAlias: madeBy ? aliasOf(madeBy) : null,
+      week: m.week,
+      pickerId: m.pickerManagerId,
+      pickerAlias: aliasOf(m.pickerManagerId),
+      opponentId: m.opponentManagerId,
+      opponentAlias: aliasOf(m.opponentManagerId),
+    };
+  };
 
-  const canPick = actingAsId !== null && actingAsId === clockId && !board.complete;
+  // Whoever is on the clock picks; a flag holder may take that turn for them.
+  const canPick =
+    !board.complete &&
+    clockId !== null &&
+    actingAsId !== null &&
+    (actingAsId === clockId || canPickForOthers);
+  const pickingFor =
+    canPick && clockId !== null && clockId !== actingAsId
+      ? { managerId: clockId, alias: aliasOf(clockId) }
+      : null;
 
   return {
     id: draft.id,
@@ -265,7 +316,20 @@ export function toStateView(
     onTheClockId: clockId,
     onTheClockAlias: clockId ? aliasOf(clockId) : null,
     actingAsId,
+    canPickForOthers,
+    pickingFor,
     canPick,
-    legal: canPick ? legalPicks(order, picks, actingAsId, aliasOf) : [],
+    // Always the options of the team on the clock — never the caller's, which
+    // is the same thing except when somebody is picking on their behalf.
+    legal:
+      canPick && clockId
+        ? legalPicks(
+            order,
+            picks,
+            clockId,
+            aliasOf,
+            pickingFor ? pickingFor.alias : undefined
+          )
+        : [],
   };
 }
