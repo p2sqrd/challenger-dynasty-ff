@@ -7,9 +7,6 @@ import type { DraftStateView } from "@/lib/rematch-load";
 
 const POLL_MS = 3000;
 
-/** "auto" follows whoever is on the clock — the fast way to rehearse a draft. */
-const AUTO = "auto";
-
 export function RematchDraftRoom({
   initial,
   myManagerId,
@@ -18,15 +15,13 @@ export function RematchDraftRoom({
   myManagerId: string | null;
 }) {
   const [state, setState] = useState<DraftStateView>(initial);
-  const [actAs, setActAs] = useState<string>(initial.isTest ? AUTO : "");
   const [selectedWeek, setSelectedWeek] = useState<number>(initial.weeks[0]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   const fetchState = useCallback(async (): Promise<DraftStateView | null> => {
     try {
-      const query = actAs ? `?actAs=${actAs}` : "";
-      const res = await fetch(`/api/rematch-draft/${initial.id}/state${query}`, {
+      const res = await fetch(`/api/rematch-draft/${initial.id}/state`, {
         cache: "no-store",
       });
       if (!res.ok) return null;
@@ -34,10 +29,8 @@ export function RematchDraftRoom({
     } catch {
       return null; // Transient — the next poll retries.
     }
-  }, [initial.id, actAs]);
+  }, [initial.id]);
 
-  // Changing the acting-as team rebuilds the interval, which also refreshes
-  // the board immediately against the newly selected team.
   useEffect(() => {
     let cancelled = false;
     async function tick() {
@@ -71,27 +64,12 @@ export function RematchDraftRoom({
       const res = await fetch(`/api/rematch-draft/${initial.id}/pick`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          opponentManagerId,
-          week,
-          actAsManagerId: actAs || undefined,
-        }),
+        body: JSON.stringify({ opponentManagerId, week }),
       });
       const body = (await res.json()) as { error?: string };
       if (!res.ok) setError(body.error ?? "That pick didn't go through.");
     } catch {
       setError("That pick didn't go through.");
-    } finally {
-      setBusy(false);
-      await refresh();
-    }
-  }
-
-  async function reset() {
-    setBusy(true);
-    setError("");
-    try {
-      await fetch(`/api/rematch-draft/${initial.id}/reset`, { method: "POST" });
     } finally {
       setBusy(false);
       await refresh();
@@ -108,48 +86,13 @@ export function RematchDraftRoom({
     <div>
       <PageHeader
         title={state.label}
-        subtitle="Pick an opponent and a week. Each pick fills that week for both teams, so a team with all three weeks set is skipped when its turn comes around."
+        subtitle="Pick an opponent and a week. Each pick fills that week for both teams, so a team with all three weeks set is skipped when its turn comes around. A week left with only one legal opponent is assigned automatically rather than costing anyone a pick."
         right={
           <span className="tabular text-sm text-muted">
-            {state.made} / {state.total} picks
+            {state.made} / {state.total} matchups
           </span>
         }
       />
-
-      {state.isTest && (
-        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-md border border-brand/40 bg-brand/5 p-4">
-          <span className="text-xs uppercase tracking-wide text-brand">
-            Test board
-          </span>
-          <label className="flex items-center gap-2 text-sm text-muted">
-            Acting as
-            <select
-              value={actAs}
-              onChange={(e) => setActAs(e.target.value)}
-              className="rounded-md border border-line bg-canvas px-3 py-2 text-sm text-ink focus:border-brand focus:outline-none"
-            >
-              <option value={AUTO}>Whoever&apos;s on the clock</option>
-              {state.teams.map((t) => (
-                <option key={t.managerId} value={t.managerId}>
-                  {t.alias}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            onClick={reset}
-            disabled={busy}
-            className="rounded-md border border-line px-4 py-2 text-sm text-muted transition-opacity hover:text-ink disabled:opacity-40"
-          >
-            Reset draft
-          </button>
-          <p className="w-full text-xs text-muted">
-            Nothing here notifies the league. The real draft has no acting-as
-            control — you can only ever pick for your own team.
-          </p>
-        </div>
-      )}
 
       <section className="mb-6 rounded-md border border-line bg-surface p-5">
         {state.complete ? (
@@ -244,15 +187,22 @@ export function RematchDraftRoom({
             <ul className="flex flex-col gap-2">
               {matchups.map((m) => (
                 <li
-                  key={m.pickNumber}
+                  key={`${m.week}-${m.pickerId}-${m.opponentId}`}
                   className="flex items-center justify-between gap-2 rounded-md bg-canvas px-3 py-2"
                 >
                   <span className="flex flex-col gap-1">
                     <Nameplate alias={m.pickerAlias} size="sm" />
                     <Nameplate alias={m.opponentAlias} size="sm" />
                   </span>
-                  <span className="tabular text-xs text-muted">
-                    #{m.pickNumber}
+                  <span
+                    className="tabular text-xs text-muted"
+                    title={
+                      m.auto
+                        ? "Only legal matchup left — assigned automatically."
+                        : undefined
+                    }
+                  >
+                    {m.auto ? "auto" : `#${m.pickNumber}`}
                   </span>
                 </li>
               ))}

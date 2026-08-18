@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  FINISH_BY_YEAR,
   REMATCH_WEEKS,
   TOTAL_PICKS,
   buildBoard,
   canComplete,
+  finishOrderFor,
   legalPicks,
   onTheClock,
   turnOrder,
@@ -35,6 +37,19 @@ function pick(
 ): RematchPick {
   return { pickNumber, week, pickerManagerId, opponentManagerId };
 }
+
+describe("finishOrderFor", () => {
+  it("drafts a season on the previous season's finish", () => {
+    // The 2026 draft runs off how 2025 ended, champion last.
+    expect(finishOrderFor(2026)).toBe(FINISH_BY_YEAR[2025]);
+    expect(finishOrderFor(2026)).toHaveLength(12);
+  });
+
+  it("returns null for a year that hasn't been recorded", () => {
+    // What the page turns into "no draft yet" instead of a crash.
+    expect(finishOrderFor(2027)).toBeNull();
+  });
+});
 
 describe("turnOrder", () => {
   it("opens with the consolation winner and closes with the champion", () => {
@@ -200,15 +215,108 @@ describe("canComplete", () => {
   });
 });
 
+describe("forced matchups", () => {
+  it("pairs the last two teams in a week without spending a pick", () => {
+    // Five of the six week-12 matchups made; Ari and Murali are all that's
+    // left, so they can only play each other.
+    const picks = [
+      pick(1, "Hirsch", "Harsha", 12),
+      pick(2, "Arun", "Aditya", 12),
+      pick(3, "Pranav", "Mukund", 12),
+      pick(4, "Kartik", "Vij", 12),
+      pick(5, "Omar", "Harish", 12),
+    ];
+    const board = buildBoard(FINISH, picks);
+    const week12 = board.byWeek.get(12)!;
+
+    expect(week12).toHaveLength(6);
+    const forced = week12.find((m) => m.auto)!;
+    expect(forced.pickNumber).toBeNull();
+    expect([forced.pickerManagerId, forced.opponentManagerId].sort()).toEqual([
+      "Ari",
+      "Murali",
+    ]);
+    // Five picks, six matchups.
+    expect(board.picks).toHaveLength(5);
+    expect(board.made).toBe(6);
+  });
+
+  it("cascades — filling one forced slot can force the next", () => {
+    // Week 12 down to four open teams (Omar, Harish, Ari, Murali), and Omar has
+    // already drawn Ari and Murali in the other two weeks. So Omar can only
+    // play Harish, and once that's in, Ari and Murali are the only pair left.
+    const picks = [
+      pick(1, "Hirsch", "Harsha", 12),
+      pick(2, "Arun", "Aditya", 12),
+      pick(3, "Pranav", "Mukund", 12),
+      pick(4, "Kartik", "Vij", 12),
+      pick(5, "Omar", "Ari", 13),
+      pick(6, "Omar", "Murali", 14),
+    ];
+    const week12 = buildBoard(FINISH, picks).byWeek.get(12)!;
+
+    expect(week12).toHaveLength(6);
+    const forced = week12
+      .filter((m) => m.auto)
+      .map((m) => [m.pickerManagerId, m.opponentManagerId].sort().join(" v "));
+    expect(forced.sort()).toEqual(["Ari v Murali", "Harish v Omar"]);
+  });
+
+  it("leaves a slot alone while it still has a choice", () => {
+    // Four teams open in Week 12 means two ways to pair them up. Nothing is
+    // decided, so nothing is assigned.
+    const picks = [
+      pick(1, "Hirsch", "Harsha", 12),
+      pick(2, "Arun", "Aditya", 12),
+      pick(3, "Pranav", "Mukund", 12),
+      pick(4, "Kartik", "Vij", 12),
+    ];
+    const board = buildBoard(FINISH, picks);
+    expect(board.byWeek.get(12)!.filter((m) => m.auto)).toEqual([]);
+    expect(board.made).toBe(4);
+  });
+
+  it("never offers a forced matchup as a pick", () => {
+    const picks = [
+      pick(1, "Hirsch", "Harsha", 12),
+      pick(2, "Arun", "Aditya", 12),
+      pick(3, "Pranav", "Mukund", 12),
+      pick(4, "Kartik", "Vij", 12),
+      pick(5, "Omar", "Harish", 12),
+    ];
+    // Ari's Week 12 was settled by the closure, so it reads as set rather than
+    // as the one option left.
+    const ariWeek12 = legalPicks(FINISH, picks, "Ari").filter((p) => p.week === 12);
+    expect(ariWeek12.every((p) => !p.ok)).toBe(true);
+    expect(ariWeek12.some((p) => p.reason === "Your Week 12 is already set.")).toBe(
+      true
+    );
+  });
+
+  it("skips a team the closure finished before its turn came", () => {
+    // Murali's three weeks all get forced. When the clock reaches him there's
+    // nothing to pick, so it moves on.
+    const picks = [
+      pick(1, "Hirsch", "Murali", 12),
+      pick(2, "Arun", "Murali", 13),
+      pick(3, "Pranav", "Murali", 14),
+    ];
+    expect(buildBoard(FINISH, picks).teams.get("Murali")!.weeksOpen).toEqual([]);
+    expect(onTheClock(FINISH, picks)).not.toBe("Murali");
+  });
+});
+
 describe("a full guarded draft", () => {
-  it("always completes — 18 matchups, 3 distinct opponents each, one per week", () => {
+  it("completes in fewer than 18 picks — 18 matchups, 3 distinct opponents each", () => {
     // Greedily take the first legal option every turn. The lookahead guard is
     // the only thing keeping this from dead-ending: without it, 33.8% of
-    // randomly-played legal drafts strand the last teams.
+    // randomly-played legal drafts strand the last teams. The closure is what
+    // keeps it under 18 — the matchups nobody had a choice about fill in on
+    // their own.
     const picks: RematchPick[] = [];
     for (let n = 1; n <= TOTAL_PICKS; n++) {
-      const picker = onTheClock(FINISH, picks)!;
-      expect(picker).not.toBeNull();
+      const picker = onTheClock(FINISH, picks);
+      if (picker === null) break;
       const option = legalPicks(FINISH, picks, picker).find((p) => p.ok);
       expect(option, `no legal pick at pick ${n}`).toBeDefined();
       picks.push(pick(n, picker, option!.opponentManagerId, option!.week));
@@ -217,6 +325,9 @@ describe("a full guarded draft", () => {
     const board = buildBoard(FINISH, picks);
     expect(board.complete).toBe(true);
     expect(onTheClock(FINISH, picks)).toBeNull();
+    expect(picks.length).toBeLessThan(TOTAL_PICKS);
+    expect(board.made).toBe(TOTAL_PICKS);
+    console.log(`full draft: ${picks.length} picks, ${board.made} matchups`);
 
     for (const week of REMATCH_WEEKS) {
       expect(board.byWeek.get(week)).toHaveLength(FINISH.length / 2);
