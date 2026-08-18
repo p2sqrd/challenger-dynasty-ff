@@ -20,25 +20,40 @@ export type RematchWeek = (typeof REMATCH_WEEKS)[number];
 export const TOTAL_PICKS = 18;
 
 /**
- * 2025 final playoff standings, 1st → 12th, by Sleeper display name.
- * Derived from the league's winners_bracket / losers_bracket
- * (league 1180096336035880960): the winners bracket settles 1st–6th, and the
- * losers (consolation) bracket settles 7th–12th.
+ * Final playoff standings, 1st → 12th, by Sleeper display name, keyed by the
+ * season that produced them. Derived from the league's winners_bracket /
+ * losers_bracket (league 1180096336035880960): the winners bracket settles
+ * 1st–6th, and the losers (consolation) bracket settles 7th–12th.
+ *
+ * This is the feature's only annual maintenance — paste one array per year
+ * and next season's draft opens itself.
  */
-export const FINISH_2025 = [
-  "hnukala", // 1st — Harsha (champion)
-  "aml200", // 2nd — Aditya
-  "mukundc", // 3rd — Mukund
-  "vijaysingh1194", // 4th — Vij/Sah/Kalp
-  "omarels", // 5th — Omar
-  "hs1", // 6th — Harish
-  "sprtzfan17", // 7th — Hirsch (consolation winner, so he picks first)
-  "Pingles", // 8th — Arun
-  "ppradhan", // 9th — Pranav
-  "KartikC", // 10th — Kartik
-  "ari2jainz", // 11th — Ari
-  "krishnaboy", // 12th — Murali
-] as const;
+export const FINISH_BY_YEAR: Record<number, readonly string[]> = {
+  2025: [
+    "hnukala", // 1st — Harsha (champion)
+    "aml200", // 2nd — Aditya
+    "mukundc", // 3rd — Mukund
+    "vijaysingh1194", // 4th — Vij/Sah/Kalp
+    "omarels", // 5th — Omar
+    "hs1", // 6th — Harish
+    "sprtzfan17", // 7th — Hirsch (consolation winner, so he picks first)
+    "Pingles", // 8th — Arun
+    "ppradhan", // 9th — Pranav
+    "KartikC", // 10th — Kartik
+    "ari2jainz", // 11th — Ari
+    "krishnaboy", // 12th — Murali
+  ],
+  // 2026: paste after the '26 consolation final.
+};
+
+/**
+ * The order a season drafts in — the previous season's finish. Null when that
+ * year hasn't been recorded yet, which the page turns into "no draft yet"
+ * rather than a crash.
+ */
+export function finishOrderFor(seasonYear: number): readonly string[] | null {
+  return FINISH_BY_YEAR[seasonYear - 1] ?? null;
+}
 
 export interface RematchPick {
   pickNumber: number;

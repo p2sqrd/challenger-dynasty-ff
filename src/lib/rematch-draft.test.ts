@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  FINISH_BY_YEAR,
   REMATCH_WEEKS,
   TOTAL_PICKS,
   buildBoard,
   canComplete,
+  finishOrderFor,
   legalPicks,
   onTheClock,
   turnOrder,
@@ -35,6 +37,19 @@ function pick(
 ): RematchPick {
   return { pickNumber, week, pickerManagerId, opponentManagerId };
 }
+
+describe("finishOrderFor", () => {
+  it("drafts a season on the previous season's finish", () => {
+    // The 2026 draft runs off how 2025 ended, champion last.
+    expect(finishOrderFor(2026)).toBe(FINISH_BY_YEAR[2025]);
+    expect(finishOrderFor(2026)).toHaveLength(12);
+  });
+
+  it("returns null for a year that hasn't been recorded", () => {
+    // What the page turns into "no draft yet" instead of a crash.
+    expect(finishOrderFor(2027)).toBeNull();
+  });
+});
 
 describe("turnOrder", () => {
   it("opens with the consolation winner and closes with the champion", () => {

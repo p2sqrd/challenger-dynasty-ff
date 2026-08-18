@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentManager } from "@/lib/managers";
 import { notifyManager } from "@/lib/notify";
 import { legalPicks, onTheClock } from "@/lib/rematch-draft";
-import { loadDraft, resolveActingAs } from "@/lib/rematch-load";
+import { loadDraft } from "@/lib/rematch-load";
 
 /** Make the pick that's on the clock: one opponent, one week, both slots filled. */
 export async function POST(
@@ -18,32 +18,20 @@ export async function POST(
     return NextResponse.json({ error: "Not linked to a manager" }, { status: 401 });
   }
 
-  const { opponentManagerId, week, actAsManagerId } = (await request
+  const { opponentManagerId, week } = (await request
     .json()
-    .catch(() => ({}))) as {
-    opponentManagerId?: string;
-    week?: number;
-    actAsManagerId?: string;
-  };
+    .catch(() => ({}))) as { opponentManagerId?: string; week?: number };
 
   const admin = createAdminClient();
   const loaded = await loadDraft(admin, id);
   if (!loaded) {
     return NextResponse.json({ error: "Draft not found." }, { status: 404 });
   }
-  const { draft, order, picks, aliasOf } = loaded;
+  const { order, picks, aliasOf } = loaded;
 
-  // On a live draft you are always yourself, full stop — the acting-as
-  // parameter is ignored outright. Test drafts are throwaway boards, so anyone
-  // can drive any team through this exact code path to rehearse the draft.
-  if (actAsManagerId && !draft.is_test) {
-    return NextResponse.json(
-      { error: "You can only pick for your own team." },
-      { status: 403 }
-    );
-  }
-  const actorId = resolveActingAs(loaded, manager.id, actAsManagerId);
-  if (!actorId || !order.includes(actorId)) {
+  // You are always yourself: there is no picking on another team's behalf.
+  const actorId = manager.id;
+  if (!order.includes(actorId)) {
     return NextResponse.json(
       { error: "Your team isn't in this draft." },
       { status: 403 }
@@ -102,27 +90,24 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Put the next team on the clock. Test drafts stay silent so rehearsals
-  // don't spam the league.
-  if (!draft.is_test) {
-    const nextUp = onTheClock(order, [
-      ...picks,
-      {
-        pickNumber: picks.length + 1,
-        week,
-        pickerManagerId: actorId,
-        opponentManagerId,
-      },
-    ]);
-    if (nextUp) {
-      await notifyManager(admin, nextUp, {
-        title: "You're on the clock",
-        body: `${aliasOf(actorId)} took ${aliasOf(
-          opponentManagerId
-        )} for Week ${week}. Pick your rematch.`,
-        link: `/rematch-draft/${id}`,
-      });
-    }
+  // Put the next team on the clock.
+  const nextUp = onTheClock(order, [
+    ...picks,
+    {
+      pickNumber: picks.length + 1,
+      week,
+      pickerManagerId: actorId,
+      opponentManagerId,
+    },
+  ]);
+  if (nextUp) {
+    await notifyManager(admin, nextUp, {
+      title: "You're on the clock",
+      body: `${aliasOf(actorId)} took ${aliasOf(
+        opponentManagerId
+      )} for Week ${week}. Pick your rematch.`,
+      link: `/rematch-draft/${id}`,
+    });
   }
 
   return NextResponse.json({ ok: true });
