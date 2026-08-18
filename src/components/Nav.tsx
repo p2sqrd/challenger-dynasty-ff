@@ -46,6 +46,13 @@ export async function Nav() {
   };
   const budget: NavLink = { href: "/budget", label: "Auction Budget", match: "prefix" };
   const fireSale: NavLink = { href: "/fire-sale", label: "Fire Sale", match: "prefix" };
+  // Top-level while the rematch draft is running; move it into "More"
+  // (archiveExtras) once the board is full.
+  const rematchDraft: NavLink = {
+    href: "/rematch-draft",
+    label: "Rematch Draft",
+    match: "prefix",
+  };
   const standings: NavLink = { href: "/standings", label: "Historical Standings", match: "prefix" };
   const scheduleLuck: NavLink = { href: "/schedule-luck", label: "Schedule Luck", match: "prefix" };
   const askMissAje: NavLink = { href: "/assistant", label: "Ask Miss Aje", match: "prefix" };
@@ -71,6 +78,7 @@ export async function Nav() {
     trades,
     budget,
     fireSale,
+    rematchDraft,
     askMissAje,
     { href: "/archive", label: "More", children: archiveExtras },
     ...commish,
