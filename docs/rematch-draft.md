@@ -94,7 +94,8 @@ a pick, for whoever is next, so nobody is told the draft has started. Tell the
 
 ## Running it next year
 
-One thing to do, once a year, after the consolation final:
+One thing to do, once a year, after the consolation final — the rest of the
+season rollover is in [new-season.md](new-season.md):
 
 ```ts
 // src/lib/rematch-draft.ts
@@ -125,7 +126,12 @@ hnukala — then back the other way for round 2.
 ## When the draft is over
 
 `src/components/Nav.tsx` has Rematch Draft as a top-level item with a comment
-saying so: move it into `archiveExtras` ("More") once the board is full.
+saying so: move it into `archiveExtras` ("More") once the board is full, and
+back to top level when next season's opens.
+
+The board stays where it is. `/rematch-draft` always redirects to the *active*
+season, so once a new season opens, every earlier board is reachable through the
+"Past drafts" list at the bottom of the room.
 
 ## Rehearsing a change
 

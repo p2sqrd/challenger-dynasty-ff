@@ -17,7 +17,9 @@ page — see the comment in `src/app/(app)/page.tsx`.
    npm install
    ```
 
-2. **Environment variables** — copy `.env.example` to `.env.local` and fill in:
+2. **Environment variables** — copy `.env.example` to `.env.local` and fill in
+   (the `scripts/` below read `.env` rather than `.env.local`, so put the two
+   Supabase values in both, or pass them inline):
    - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — from
      your Supabase project's Settings → Data API / API Keys.
    - `SUPABASE_SECRET_KEY` — same page, "Secret keys" section. Server-only,
@@ -53,7 +55,8 @@ page — see the comment in `src/app/(app)/page.tsx`.
    selection screen has a manual-entry fallback for players missing a prior
    season price).
 
-6. **Open the season for keeper selection**:
+6. **Open the season for keeper selection** — the full annual rollover
+   checklist is [docs/new-season.md](docs/new-season.md):
    ```bash
    npx tsx scripts/create-season.ts --year 2026 --budget 200
    ```

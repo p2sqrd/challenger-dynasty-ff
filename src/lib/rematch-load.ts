@@ -149,6 +149,36 @@ export async function ensureSeasonDraft(
   return { id: created.id };
 }
 
+/** One season's board, for the "other seasons" list in the room. */
+export interface DraftIndexEntry {
+  id: string;
+  label: string;
+  year: number;
+}
+
+/**
+ * Every season's board, newest first. `/rematch-draft` always redirects to the
+ * active season, so this is the only way back to an old one.
+ */
+export async function listSeasonDrafts(
+  admin: SupabaseClient<Database>
+): Promise<DraftIndexEntry[]> {
+  const [{ data: drafts }, { data: seasons }] = await Promise.all([
+    admin.from("rematch_drafts").select("id, label, season_id"),
+    admin.from("seasons").select("id, year"),
+  ]);
+
+  const yearById = new Map((seasons ?? []).map((s) => [s.id, s.year]));
+
+  return (drafts ?? [])
+    .map((d) => ({
+      id: d.id,
+      label: d.label,
+      year: yearById.get(d.season_id) ?? 0,
+    }))
+    .sort((a, b) => b.year - a.year);
+}
+
 /** Fetch the draft, its picks, and a manager-id → display-name resolver. */
 export async function loadDraft(
   admin: SupabaseClient<Database>,
