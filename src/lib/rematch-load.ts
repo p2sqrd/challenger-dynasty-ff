@@ -7,6 +7,7 @@ import {
   legalPicks,
   onTheClock,
   type LegalPick,
+  type Matchup,
   type RematchPick,
 } from "@/lib/rematch-draft";
 
@@ -28,7 +29,10 @@ export interface DraftTeamView {
 }
 
 export interface DraftMatchupView {
-  pickNumber: number;
+  /** null when the board assigned this itself — see buildBoard's closure. */
+  pickNumber: number | null;
+  /** Forced by the picks already made rather than chosen. */
+  auto: boolean;
   week: number;
   pickerId: string;
   pickerAlias: string;
@@ -193,13 +197,14 @@ export function toStateView(
   const board = buildBoard(order, picks);
   const clockId = onTheClock(order, picks);
 
-  const matchup = (p: RematchPick): DraftMatchupView => ({
-    pickNumber: p.pickNumber,
-    week: p.week,
-    pickerId: p.pickerManagerId,
-    pickerAlias: aliasOf(p.pickerManagerId),
-    opponentId: p.opponentManagerId,
-    opponentAlias: aliasOf(p.opponentManagerId),
+  const matchup = (m: Matchup | RematchPick): DraftMatchupView => ({
+    pickNumber: m.pickNumber,
+    auto: "auto" in m ? m.auto : false,
+    week: m.week,
+    pickerId: m.pickerManagerId,
+    pickerAlias: aliasOf(m.pickerManagerId),
+    opponentId: m.opponentManagerId,
+    opponentAlias: aliasOf(m.opponentManagerId),
   });
 
   const canPick = actingAsId !== null && actingAsId === clockId && !board.complete;

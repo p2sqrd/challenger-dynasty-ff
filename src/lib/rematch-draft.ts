@@ -74,18 +74,23 @@ export interface TeamSlots {
 }
 
 export interface Matchup {
-  pickNumber: number;
+  /** The turn that produced this, or null when it was forced (see buildBoard). */
+  pickNumber: number | null;
   week: number;
   pickerManagerId: string;
   opponentManagerId: string;
+  /** Assigned by the board rather than chosen by a manager. */
+  auto: boolean;
 }
 
 export interface Board {
   /** Per-team slots, keyed by manager id. */
   teams: Map<string, TeamSlots>;
-  /** Matchups grouped by week, in pick order. */
+  /** Matchups grouped by week, picks in pick order then forced fills. */
   byWeek: Map<number, Matchup[]>;
-  /** How many of the 18 matchups exist. */
+  /** The stored picks this board was folded from, in pick order. */
+  picks: RematchPick[];
+  /** How many of the 18 matchups are set, forced ones included. */
   made: number;
   complete: boolean;
 }
@@ -125,7 +130,23 @@ export function turnOrder(finishOrder: string[]): string[] {
   return sequence;
 }
 
-/** Fold the picks made so far into per-team slots and a week-by-week board. */
+/**
+ * Fold the picks made so far into per-team slots and a week-by-week board,
+ * then fill in everything those picks already decided.
+ *
+ * A matchup is *forced* when an open (team, week) slot has exactly one legal
+ * partner left: that pairing appears in every legal completion of the board, so
+ * making somebody spend a turn clicking their only option is busywork. Filling
+ * it changes nobody's legal options — a pick that contradicted it would leave
+ * the board unsolvable, which `legalPicks` already refuses — it just means a
+ * draft takes fewer than 18 picks, and greys the option out with "Week 14 is
+ * already set for Ari" rather than a lookahead explanation.
+ *
+ * Forced fills cascade: filling one slot can leave another with a single
+ * partner, so this runs to a fixpoint. They aren't stored — the board is always
+ * the stored picks plus this closure, derived the same way everywhere — so they
+ * consume nobody's turn.
+ */
 export function buildBoard(finishOrder: string[], picks: RematchPick[]): Board {
   const teams = new Map<string, TeamSlots>();
   for (const id of finishOrder) {
@@ -136,23 +157,60 @@ export function buildBoard(finishOrder: string[], picks: RematchPick[]): Board {
   for (const w of REMATCH_WEEKS) byWeek.set(w, []);
 
   const ordered = [...picks].sort((a, b) => a.pickNumber - b.pickNumber);
-  for (const p of ordered) {
+
+  function fill(
+    pickNumber: number | null,
+    week: number,
+    pickerManagerId: string,
+    opponentManagerId: string
+  ) {
     for (const [self, other] of [
-      [p.pickerManagerId, p.opponentManagerId],
-      [p.opponentManagerId, p.pickerManagerId],
+      [pickerManagerId, opponentManagerId],
+      [opponentManagerId, pickerManagerId],
     ]) {
       const slots = teams.get(self);
       if (!slots) continue;
-      slots.weeksUsed.push(p.week);
+      slots.weeksUsed.push(week);
       slots.opponents.push(other);
-      slots.weeksOpen = slots.weeksOpen.filter((w) => w !== p.week);
+      slots.weeksOpen = slots.weeksOpen.filter((w) => w !== week);
     }
-    byWeek.get(p.week)?.push({
-      pickNumber: p.pickNumber,
-      week: p.week,
-      pickerManagerId: p.pickerManagerId,
-      opponentManagerId: p.opponentManagerId,
+    byWeek.get(week)?.push({
+      pickNumber,
+      week,
+      pickerManagerId,
+      opponentManagerId,
+      auto: pickNumber === null,
     });
+  }
+
+  for (const p of ordered) {
+    fill(p.pickNumber, p.week, p.pickerManagerId, p.opponentManagerId);
+  }
+
+  // The closure. A slot with no candidates at all means the board is already
+  // dead — leave it alone and let canComplete() be the one to say so.
+  for (let assigned = true; assigned; ) {
+    assigned = false;
+    outer: for (const managerId of finishOrder) {
+      const mine = teams.get(managerId);
+      if (!mine) continue;
+      for (const week of mine.weeksOpen) {
+        const candidates = finishOrder.filter((other) => {
+          const theirs = teams.get(other);
+          return (
+            other !== managerId &&
+            theirs !== undefined &&
+            theirs.weeksOpen.includes(week) &&
+            !mine.opponents.includes(other)
+          );
+        });
+        if (candidates.length === 1) {
+          fill(null, week, managerId, candidates[0]);
+          assigned = true;
+          break outer;
+        }
+      }
+    }
   }
 
   for (const slots of teams.values()) slots.weeksUsed.sort((a, b) => a - b);
@@ -160,8 +218,9 @@ export function buildBoard(finishOrder: string[], picks: RematchPick[]): Board {
   // Derived from the slots rather than a pick count, so the engine stays
   // correct for any even number of teams (the tests use a 6-team fixture).
   const complete = [...teams.values()].every((s) => s.weeksOpen.length === 0);
+  const made = [...byWeek.values()].reduce((n, ms) => n + ms.length, 0);
 
-  return { teams, byWeek, made: ordered.length, complete };
+  return { teams, byWeek, picks: ordered, made, complete };
 }
 
 /**
@@ -177,20 +236,22 @@ export function buildBoard(finishOrder: string[], picks: RematchPick[]): Board {
  */
 export function onTheClock(finishOrder: string[], picks: RematchPick[]): string | null {
   const sequence = turnOrder(finishOrder);
-  const weeksUsed = new Map(finishOrder.map((id) => [id, new Set<number>()]));
-  const isFull = (id: string) =>
-    (weeksUsed.get(id)?.size ?? 0) >= REMATCH_WEEKS.length;
+  const ordered = [...picks].sort((a, b) => a.pickNumber - b.pickNumber);
+
+  // "Full" is read off the board as it stood before each pick, so forced fills
+  // count the same as picks: a team the closure finished never gets a turn.
+  const isFull = (board: Board, id: string) =>
+    (board.teams.get(id)?.weeksOpen.length ?? 0) === 0;
 
   let i = 0;
-  const ordered = [...picks].sort((a, b) => a.pickNumber - b.pickNumber);
-  for (const p of ordered) {
-    while (i < sequence.length && isFull(sequence[i])) i++;
+  for (let k = 0; k < ordered.length; k++) {
+    const before = buildBoard(finishOrder, ordered.slice(0, k));
+    while (i < sequence.length && isFull(before, sequence[i])) i++;
     i++; // This pick consumed that turn.
-    weeksUsed.get(p.pickerManagerId)?.add(p.week);
-    weeksUsed.get(p.opponentManagerId)?.add(p.week);
   }
 
-  while (i < sequence.length && isFull(sequence[i])) i++;
+  const now = buildBoard(finishOrder, ordered);
+  while (i < sequence.length && isFull(now, sequence[i])) i++;
   return i < sequence.length ? sequence[i] : null;
 }
 
@@ -269,18 +330,25 @@ export function canComplete(board: Board, finishOrder: string[]): boolean {
   return recurse();
 }
 
-/** Apply one matchup to a board in place, returning the same board. */
+/** The board as it would stand with one more pick on it. */
 function withPick(
   board: Board,
   pickerManagerId: string,
   opponentManagerId: string,
   week: number
 ): Board {
+  // Rebuilt from the stored picks, not from the matchups: the forced fills in
+  // `byWeek` belong to no turn and are re-derived by buildBoard anyway.
   return buildBoard(
     [...board.teams.keys()],
     [
-      ...[...board.byWeek.values()].flat(),
-      { pickNumber: board.made + 1, week, pickerManagerId, opponentManagerId },
+      ...board.picks,
+      {
+        pickNumber: board.picks.length + 1,
+        week,
+        pickerManagerId,
+        opponentManagerId,
+      },
     ]
   );
 }

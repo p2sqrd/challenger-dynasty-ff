@@ -15,7 +15,8 @@ same room.
   (7th) picks first, the champion (1st) picks last. Round 1 runs 7th → 12th
   then 6th → 1st; round 2 is that reversed, and so on.
 - **A pick is `(opponent, week)`** and fills that week for *both* teams. So a
-  12-team board is exactly 18 picks (12 × 3 ÷ 2), not 36.
+  12-team board is exactly 18 matchups (12 × 3 ÷ 2), not 36 — and fewer than 18
+  picks, since forced matchups fill themselves (below).
 - **A team whose three weeks are full is skipped** when its turn comes around.
   It can be filled entirely by other teams picking it, in which case it never
   picks at all.
@@ -24,7 +25,33 @@ same room.
 - **You are always yourself.** There is no picking on another team's behalf,
   anywhere in the app.
 
+## Forced matchups assign themselves
+
+If an open `(team, week)` slot has exactly one legal opponent left, that pairing
+is in every legal completion of the board — nobody is choosing anything by
+clicking it. So the board fills it in, and keeps going while filling one slot
+leaves another with a single option. The last matchup of a week is the common
+case; a team that has already drawn everyone else in its other weeks is the
+other.
+
+This can't change anyone's options: a pick that contradicted a forced pairing
+would leave the board unsolvable, and the lookahead guard below already refuses
+those. What it changes is that a draft costs about 15 picks rather than 18, and
+that a card greys out with "Week 14 is already set for Ari" instead of a
+lookahead explanation. Auto-assigned matchups show as `auto` in the week cards
+rather than a pick number.
+
+Forced matchups are **derived, not stored**: `rematch_picks` holds real picks
+only, and the board — the one the room renders and the one the pick route
+validates against — is those picks plus this closure, computed by the same
+function on both sides. So a finished draft has ~15 rows in the table and 18
+matchups on the board, and no auto-fill ever consumes somebody's turn, because
+it isn't a row that the clock can count.
+
 ## The load-bearing part: the lookahead guard
+
+The closure above fills in what's already decided. The guard is the other half:
+it stops a *free* choice from making the board unsolvable in the first place.
 
 Picking only *legal* moves is not enough to finish the board. Simulating 50,000
 drafts of random legal picks, **33.8% dead-ended** — the last teams left
@@ -105,7 +132,8 @@ saying so: move it into `archiveExtras` ("More") once the board is full.
 The rules engine is pure, so a draft can be run end to end with no database at
 all: a throwaway client page renders the real `<RematchDraftRoom>` against an
 in-memory board, with a `fetch` shim standing in for the two API routes and the
-actor always set to whoever is on the clock, so one person clicks all 18 picks.
+actor always set to whoever is on the clock, so one person clicks the whole
+draft through.
 That page is written when it's needed and deleted after — deliberately not
 committed, so production code never carries a test mode.
 

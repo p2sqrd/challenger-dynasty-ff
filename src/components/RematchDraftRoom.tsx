@@ -86,10 +86,10 @@ export function RematchDraftRoom({
     <div>
       <PageHeader
         title={state.label}
-        subtitle="Pick an opponent and a week. Each pick fills that week for both teams, so a team with all three weeks set is skipped when its turn comes around."
+        subtitle="Pick an opponent and a week. Each pick fills that week for both teams, so a team with all three weeks set is skipped when its turn comes around. A week left with only one legal opponent is assigned automatically rather than costing anyone a pick."
         right={
           <span className="tabular text-sm text-muted">
-            {state.made} / {state.total} picks
+            {state.made} / {state.total} matchups
           </span>
         }
       />
@@ -187,15 +187,22 @@ export function RematchDraftRoom({
             <ul className="flex flex-col gap-2">
               {matchups.map((m) => (
                 <li
-                  key={m.pickNumber}
+                  key={`${m.week}-${m.pickerId}-${m.opponentId}`}
                   className="flex items-center justify-between gap-2 rounded-md bg-canvas px-3 py-2"
                 >
                   <span className="flex flex-col gap-1">
                     <Nameplate alias={m.pickerAlias} size="sm" />
                     <Nameplate alias={m.opponentAlias} size="sm" />
                   </span>
-                  <span className="tabular text-xs text-muted">
-                    #{m.pickNumber}
+                  <span
+                    className="tabular text-xs text-muted"
+                    title={
+                      m.auto
+                        ? "Only legal matchup left — assigned automatically."
+                        : undefined
+                    }
+                  >
+                    {m.auto ? "auto" : `#${m.pickNumber}`}
                   </span>
                 </li>
               ))}
