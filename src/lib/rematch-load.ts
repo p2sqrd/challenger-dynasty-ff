@@ -69,6 +69,11 @@ export interface DraftStateView {
   pickingFor: { managerId: string; alias: string } | null;
   canPick: boolean;
   /**
+   * The caller may correct a pick already on the board (commissioner only). The
+   * room shows an edit control on each stored matchup when this is set.
+   */
+  canEdit: boolean;
+  /**
    * The options for the team on the clock, and only when the caller may take
    * them — their own turn, or a proxy picker stepping in.
    */
@@ -257,7 +262,7 @@ export async function loadDraft(
 export function toStateView(
   loaded: LoadedDraft,
   actingAsId: string | null,
-  opts: { canPickForOthers?: boolean } = {}
+  opts: { canPickForOthers?: boolean; canEdit?: boolean } = {}
 ): DraftStateView {
   const { draft, order, picks, proxyByPickNumber, aliasOf } = loaded;
   const board = buildBoard(order, picks);
@@ -319,6 +324,7 @@ export function toStateView(
     canPickForOthers,
     pickingFor,
     canPick,
+    canEdit: opts.canEdit === true,
     // Always the options of the team on the clock — never the caller's, which
     // is the same thing except when somebody is picking on their behalf.
     legal:

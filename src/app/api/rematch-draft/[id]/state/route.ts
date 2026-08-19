@@ -31,6 +31,7 @@ export async function GET(
   return NextResponse.json(
     toStateView(loaded, manager.id, {
       canPickForOthers: manager.can_pick_for_others === true,
+      canEdit: manager.role === "commissioner",
     })
   );
 }

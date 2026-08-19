@@ -19,6 +19,13 @@ export function RematchDraftRoom({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Commish pick-correction: which stored pick (by number) is open for editing,
+  // and the opponent/week being set on it.
+  const [editing, setEditing] = useState<number | null>(null);
+  const [editOpp, setEditOpp] = useState("");
+  const [editWeek, setEditWeek] = useState<number>(initial.weeks[0]);
+  const [editError, setEditError] = useState("");
+
   const fetchState = useCallback(async (): Promise<DraftStateView | null> => {
     try {
       const res = await fetch(`/api/rematch-draft/${initial.id}/state`, {
@@ -88,6 +95,36 @@ export function RematchDraftRoom({
     } finally {
       setBusy(false);
       await refresh();
+    }
+  }
+
+  function openEditor(pickNumber: number, opponentId: string, w: number) {
+    setEditing((cur) => (cur === pickNumber ? null : pickNumber));
+    setEditOpp(opponentId);
+    setEditWeek(w);
+    setEditError("");
+  }
+
+  async function saveEdit(pickNumber: number) {
+    setBusy(true);
+    setEditError("");
+    try {
+      const res = await fetch(`/api/rematch-draft/${initial.id}/edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pickNumber, opponentManagerId: editOpp, week: editWeek }),
+      });
+      const body = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setEditError(body.error ?? "That edit didn't go through.");
+      } else {
+        setEditing(null);
+        await refresh();
+      }
+    } catch {
+      setEditError("That edit didn't go through.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -218,25 +255,86 @@ export function RematchDraftRoom({
               {matchups.map((m) => (
                 <li
                   key={`${m.week}-${m.pickerId}-${m.opponentId}`}
-                  className="flex items-center justify-between gap-2 rounded-md bg-canvas px-3 py-2"
+                  className="rounded-md bg-canvas px-3 py-2"
                 >
-                  <span className="flex flex-col gap-1">
-                    <Nameplate alias={m.pickerAlias} size="sm" />
-                    <Nameplate alias={m.opponentAlias} size="sm" />
-                  </span>
-                  <span
-                    className="tabular text-xs text-muted"
-                    title={
-                      m.auto
-                        ? "Only legal matchup left — assigned automatically."
-                        : m.byProxyAlias
-                          ? `Picked by ${m.byProxyAlias} on ${m.pickerAlias}'s behalf.`
-                          : undefined
-                    }
-                  >
-                    {m.auto ? "auto" : `#${m.pickNumber}`}
-                    {m.byProxyAlias && <span className="ml-1 text-brand">⚑</span>}
-                  </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex flex-col gap-1">
+                      <Nameplate alias={m.pickerAlias} size="sm" />
+                      <Nameplate alias={m.opponentAlias} size="sm" />
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="tabular text-xs text-muted"
+                        title={
+                          m.auto
+                            ? "Only legal matchup left — assigned automatically."
+                            : m.byProxyAlias
+                              ? `Picked by ${m.byProxyAlias} on ${m.pickerAlias}'s behalf.`
+                              : undefined
+                        }
+                      >
+                        {m.auto ? "auto" : `#${m.pickNumber}`}
+                        {m.byProxyAlias && <span className="ml-1 text-brand">⚑</span>}
+                      </span>
+                      {state.canEdit && m.pickNumber !== null && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openEditor(m.pickNumber!, m.opponentId, m.week)
+                          }
+                          className="rounded border border-line px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted transition-colors hover:text-ink"
+                        >
+                          {editing === m.pickNumber ? "Close" : "Edit"}
+                        </button>
+                      )}
+                    </span>
+                  </div>
+
+                  {state.canEdit && editing === m.pickNumber && (
+                    <div className="mt-2 border-t border-line pt-2">
+                      <p className="mb-2 text-[11px] text-muted">
+                        Correcting {m.pickerAlias}&apos;s pick — set the right
+                        opponent and week.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select
+                          value={editOpp}
+                          onChange={(e) => setEditOpp(e.target.value)}
+                          className="rounded border border-line bg-surface px-2 py-1 text-sm text-ink"
+                        >
+                          {state.teams
+                            .filter((t) => t.managerId !== m.pickerId)
+                            .map((t) => (
+                              <option key={t.managerId} value={t.managerId}>
+                                {t.alias}
+                              </option>
+                            ))}
+                        </select>
+                        <select
+                          value={editWeek}
+                          onChange={(e) => setEditWeek(Number(e.target.value))}
+                          className="rounded border border-line bg-surface px-2 py-1 text-sm text-ink"
+                        >
+                          {state.weeks.map((w) => (
+                            <option key={w} value={w}>
+                              Week {w}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => saveEdit(m.pickNumber!)}
+                          className="rounded-md bg-brand px-3 py-1 text-sm font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
+                        >
+                          {busy ? "Saving…" : "Save"}
+                        </button>
+                      </div>
+                      {editError && (
+                        <p className="mt-2 text-xs text-rejected">{editError}</p>
+                      )}
+                    </div>
+                  )}
                 </li>
               ))}
               {matchups.length === 0 && (
