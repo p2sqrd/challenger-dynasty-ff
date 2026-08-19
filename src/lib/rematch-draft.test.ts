@@ -9,6 +9,7 @@ import {
   legalPicks,
   onTheClock,
   turnOrder,
+  validatePickSequence,
   type RematchPick,
 } from "./rematch-draft";
 
@@ -195,6 +196,40 @@ describe("legalPicks", () => {
       (p) => p.opponentManagerId === "Harsha" && p.week === 13
     )!;
     expect(vsHarsha.reason).toMatch(/HARSHA/);
+  });
+});
+
+describe("validatePickSequence", () => {
+  it("accepts a legal run of picks", () => {
+    const picks = [
+      pick(1, "Hirsch", "Harsha", 12),
+      pick(2, "Arun", "Harsha", 13),
+      pick(3, "Pranav", "Mukund", 12),
+    ];
+    expect(validatePickSequence(FINISH, picks).ok).toBe(true);
+  });
+
+  it("rejects an edit that makes a later pick illegal", () => {
+    // Editing pick 1 to take Harsha's Week 13 collides with pick 2, which had
+    // already put Arun there.
+    const edited = [
+      pick(1, "Hirsch", "Harsha", 13),
+      pick(2, "Arun", "Harsha", 13),
+    ];
+    const check = validatePickSequence(FINISH, edited, (id) => id);
+    expect(check.ok).toBe(false);
+    expect(check.reason).toMatch(/Pick #2/);
+  });
+
+  it("rejects a sequence whose picker wasn't on the clock", () => {
+    // Arun, not Pranav, is second on the clock — an edit can't rewrite that.
+    const bad = [
+      pick(1, "Hirsch", "Harsha", 12),
+      pick(2, "Pranav", "Aditya", 12),
+    ];
+    const check = validatePickSequence(FINISH, bad);
+    expect(check.ok).toBe(false);
+    expect(check.reason).toMatch(/on the clock/);
   });
 });
 

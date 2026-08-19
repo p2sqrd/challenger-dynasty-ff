@@ -37,6 +37,7 @@ export default async function RematchDraftRoomPage({
   // takes over polling from here.
   const initial = toStateView(loaded, manager?.id ?? null, {
     canPickForOthers: manager?.can_pick_for_others === true,
+    canEdit: manager?.role === "commissioner",
   });
 
   // /rematch-draft always redirects to the active season, so this list is the

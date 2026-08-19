@@ -425,3 +425,63 @@ export function legalPicks(
 
   return out;
 }
+
+export interface SequenceCheck {
+  ok: boolean;
+  /** When !ok, which stored pick broke and why. Empty when ok. */
+  reason: string;
+}
+
+/**
+ * Replay a full, ordered list of stored picks and confirm every one is still a
+ * legal play at its turn: the team credited with the pick was on the clock
+ * then, and its (opponent, week) was an available, board-solvable option given
+ * only the picks before it.
+ *
+ * This is what vets an in-place edit. Editing a pick changes the board every
+ * later pick was validated against, so rebuild the list with the change and run
+ * it through here — if a pick that came after the edited one no longer lines up
+ * (its picker wouldn't be on the clock, or its matchup is now taken or would
+ * strand the board), the edit is refused rather than silently leaving an
+ * impossible board. Forced fills need no checking: they carry no pick_number
+ * and are re-derived by buildBoard, and legalPicks already refuses anything
+ * that contradicts them.
+ */
+export function validatePickSequence(
+  finishOrder: string[],
+  picks: RematchPick[],
+  nameOf: (managerId: string) => string = (id) => id
+): SequenceCheck {
+  const ordered = [...picks].sort((a, b) => a.pickNumber - b.pickNumber);
+
+  for (let k = 0; k < ordered.length; k++) {
+    const prefix = ordered.slice(0, k);
+    const p = ordered[k];
+
+    const clock = onTheClock(finishOrder, prefix);
+    if (clock !== p.pickerManagerId) {
+      return {
+        ok: false,
+        reason: `Pick #${p.pickNumber} no longer lines up — ${nameOf(
+          p.pickerManagerId
+        )} wouldn't be on the clock there.`,
+      };
+    }
+
+    const option = legalPicks(finishOrder, prefix, p.pickerManagerId, nameOf).find(
+      (l) => l.opponentManagerId === p.opponentManagerId && l.week === p.week
+    );
+    if (!option || !option.ok) {
+      return {
+        ok: false,
+        reason: `Pick #${p.pickNumber} (${nameOf(p.pickerManagerId)} vs ${nameOf(
+          p.opponentManagerId
+        )}, Week ${p.week}) would become illegal: ${
+          option?.reason ?? "not an available matchup"
+        }`,
+      };
+    }
+  }
+
+  return { ok: true, reason: "" };
+}
