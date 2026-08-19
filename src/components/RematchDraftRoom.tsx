@@ -58,6 +58,21 @@ export function RematchDraftRoom({
     : openWeeks[0] ?? selectedWeek;
 
   async function submit(opponentManagerId: string) {
+    // Picking for somebody else is the one action here you can't take back and
+    // they didn't ask for, so it costs a second click.
+    if (state.pickingFor) {
+      const opponent =
+        state.teams.find((t) => t.managerId === opponentManagerId)?.alias ?? "them";
+      if (
+        !confirm(
+          `Make ${state.pickingFor.alias}'s pick for them: ` +
+            `${state.pickingFor.alias} vs ${opponent}, Week ${week}?\n\n` +
+            `${state.pickingFor.alias} will be told you picked for them.`
+        )
+      ) {
+        return;
+      }
+    }
     setBusy(true);
     setError("");
     try {
@@ -113,6 +128,21 @@ export function RematchDraftRoom({
 
         {state.canPick && !state.complete && (
           <div className="mt-5 border-t border-line pt-5">
+            {state.pickingFor && (
+              <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-brand/40 bg-brand/5 p-4">
+                <span className="text-xs uppercase tracking-wide text-brand">
+                  Commish pick
+                </span>
+                <span className="flex items-center gap-2 text-sm text-muted">
+                  You&apos;re picking for
+                  <Nameplate alias={state.pickingFor.alias} size="sm" />
+                </span>
+                <p className="w-full text-xs text-muted">
+                  These are their options, not yours. The pick goes down as
+                  theirs, the board marks who made it, and they&apos;re told.
+                </p>
+              </div>
+            )}
             <div className="mb-4 flex flex-wrap gap-2">
               {byWeekOptions.map((o) => (
                 <button
@@ -199,10 +229,13 @@ export function RematchDraftRoom({
                     title={
                       m.auto
                         ? "Only legal matchup left — assigned automatically."
-                        : undefined
+                        : m.byProxyAlias
+                          ? `Picked by ${m.byProxyAlias} on ${m.pickerAlias}'s behalf.`
+                          : undefined
                     }
                   >
                     {m.auto ? "auto" : `#${m.pickNumber}`}
+                    {m.byProxyAlias && <span className="ml-1 text-brand">⚑</span>}
                   </span>
                 </li>
               ))}

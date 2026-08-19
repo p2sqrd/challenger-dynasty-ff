@@ -35,7 +35,9 @@ export default async function RematchDraftRoomPage({
 
   // Server-render the board so the room isn't blank on first paint; the client
   // takes over polling from here.
-  const initial = toStateView(loaded, manager?.id ?? null);
+  const initial = toStateView(loaded, manager?.id ?? null, {
+    canPickForOthers: manager?.can_pick_for_others === true,
+  });
 
   // /rematch-draft always redirects to the active season, so this list is the
   // only route back to an earlier year's board.

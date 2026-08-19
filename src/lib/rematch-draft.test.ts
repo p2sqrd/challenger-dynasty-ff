@@ -145,6 +145,28 @@ describe("legalPicks", () => {
     expect(self[0].reason).toMatch(/play yourself/);
   });
 
+  it("names the team instead of saying 'you' when someone else is reading", () => {
+    // The commish looking at Arun's board: every second-person reason becomes
+    // Arun's, so nothing reads as though it were the reader's own team.
+    const reasons = legalPicks(FINISH, base, "Arun", (id) => id, "Arun");
+    expect(
+      reasons.find((p) => p.opponentManagerId === "Arun")!.reason
+    ).toBe("Arun can't play themselves.");
+
+    const withWeek = legalPicks(FINISH, [pick(1, "Arun", "Harsha", 13)], "Arun", (id) => id, "Arun");
+    expect(withWeek.find((p) => p.opponentManagerId === "Aditya" && p.week === 13)!.reason).toBe(
+      "Arun's Week 13 is already set."
+    );
+    expect(withWeek.find((p) => p.opponentManagerId === "Harsha" && p.week === 12)!.reason).toBe(
+      "Already Arun's Week 13 opponent."
+    );
+
+    // Left off, it's second person exactly as before.
+    expect(
+      legalPicks(FINISH, base, "Arun").find((p) => p.opponentManagerId === "Arun")!.reason
+    ).toBe("You can't play yourself.");
+  });
+
   it("rejects a week either side has already filled", () => {
     const options = legalPicks(FINISH, base, "Hirsch");
     // Hirsch's own Week 13 is gone.

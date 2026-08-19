@@ -41,6 +41,8 @@ export interface Database {
           email: string;
           role: ManagerRole;
           is_ranking_author: boolean;
+          /** May make the Rematch Draft pick for whoever is on the clock. */
+          can_pick_for_others: boolean;
           keepers_unlocked: boolean;
           onboarded_at: string | null;
           created_at: string;
@@ -123,6 +125,8 @@ export interface Database {
           week: number;
           picker_manager_id: string;
           opponent_manager_id: string;
+          /** Who clicked, when that wasn't the picker. Null on a team's own pick. */
+          made_by_manager_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -132,6 +136,7 @@ export interface Database {
           week: number;
           picker_manager_id: string;
           opponent_manager_id: string;
+          made_by_manager_id?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["rematch_picks"]["Row"]>;

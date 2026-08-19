@@ -359,12 +359,17 @@ function withPick(
  * explain itself rather than silently hiding it.
  *
  * @param nameOf resolves a manager id to a display name for the reason text.
+ * @param selfLabel names the picking team instead of addressing them as "you".
+ *   Pass it when somebody is reading another team's options — the commish
+ *   picking for whoever is on the clock — so the greyed-out cards say
+ *   "Arun's Week 12 is already set" rather than "Your Week 12 is already set".
  */
 export function legalPicks(
   finishOrder: string[],
   picks: RematchPick[],
   pickerManagerId: string,
-  nameOf: (managerId: string) => string = (id) => id
+  nameOf: (managerId: string) => string = (id) => id,
+  selfLabel?: string
 ): LegalPick[] {
   const board = buildBoard(finishOrder, picks);
   const mine = board.teams.get(pickerManagerId);
@@ -377,16 +382,28 @@ export function legalPicks(
         out.push({ opponentManagerId, week, ok: false, reason });
 
       if (opponentManagerId === pickerManagerId) {
-        deny("You can't play yourself.");
+        deny(
+          selfLabel
+            ? `${selfLabel} can't play themselves.`
+            : "You can't play yourself."
+        );
         continue;
       }
       if (mine.weeksUsed.includes(week)) {
-        deny(`Your Week ${week} is already set.`);
+        deny(
+          selfLabel
+            ? `${selfLabel}'s Week ${week} is already set.`
+            : `Your Week ${week} is already set.`
+        );
         continue;
       }
       if (mine.opponents.includes(opponentManagerId)) {
         const already = mine.weeksUsed[mine.opponents.indexOf(opponentManagerId)];
-        deny(`Already your Week ${already} opponent.`);
+        deny(
+          selfLabel
+            ? `Already ${selfLabel}'s Week ${already} opponent.`
+            : `Already your Week ${already} opponent.`
+        );
         continue;
       }
       const theirs = board.teams.get(opponentManagerId);

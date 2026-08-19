@@ -28,5 +28,9 @@ export async function GET(
     return NextResponse.json({ error: "Draft not found." }, { status: 404 });
   }
 
-  return NextResponse.json(toStateView(loaded, manager.id));
+  return NextResponse.json(
+    toStateView(loaded, manager.id, {
+      canPickForOthers: manager.can_pick_for_others === true,
+    })
+  );
 }
