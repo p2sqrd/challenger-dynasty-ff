@@ -572,7 +572,7 @@ export function DynastyPowerRankings() {
           FantasyCalc points. Total auction pool ={" "}
           <span className="tabular">${methodology.totalPool.toLocaleString()}</span>.
           Each player&apos;s &ldquo;fair auction price&rdquo; = their share of
-          dynasty value, scaled to the total auction pool. Keeper surplus = fair
+          dynasty value, scaled to the total auction pool. Keeper value = fair
           price minus actual keeper/draft cost. Positive surplus means you&apos;re
           getting more value than you paid for. Teams are ranked by total surplus.
         </div>
@@ -582,7 +582,7 @@ export function DynastyPowerRankings() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="text-xs text-muted">Rank by:</span>
         <SortButton
-          label="Keeper Surplus"
+          label="Keeper Value"
           active={sort === "surplus"}
           onClick={() => setSort("surplus")}
         />
