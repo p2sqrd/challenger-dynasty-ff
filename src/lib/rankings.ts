@@ -44,7 +44,9 @@ interface Season {
 }
 
 /**
- * Build the Post-Keeper ranking cards for the active season, in ranked order.
+ * Build the per-team ranking cards for the active season, in ranked order.
+ * Shared by both boards (post-keeper and post-draft) — the roster/budget
+ * context is the same; only the saved `entries` (order, needs, blurb) differ.
  *
  * Ordering comes from the saved `entries` (authors' drag-drop order); any
  * active manager not yet placed is appended, ordered by starting budget. All
@@ -53,7 +55,7 @@ interface Season {
  * keepers are read through the caller's RLS-bound client, which only returns
  * the viewer's own picks until the keeper deadline, then everyone's.
  */
-export async function loadPostKeeperCards(
+export async function loadRankingCards(
   supabase: SupabaseClient<Database>,
   season: Season,
   viewerManagerId: string | null,

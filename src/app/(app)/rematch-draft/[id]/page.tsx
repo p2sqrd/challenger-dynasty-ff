@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentManager } from "@/lib/managers";
 import { listSeasonDrafts, loadDraft, toStateView } from "@/lib/rematch-load";
+import { seasonSpanLabel } from "@/lib/season-label";
 import { PageHeader } from "@/components/PageHeader";
 import { RematchDraftRoom } from "@/components/RematchDraftRoom";
 
@@ -40,38 +41,42 @@ export default async function RematchDraftRoomPage({
     canEdit: manager?.role === "commissioner",
   });
 
-  // /rematch-draft always redirects to the active season, so this list is the
-  // only route back to an earlier year's board.
+  // One tab per season's board, newest first (listSeasonDrafts sorts by year
+  // desc). Each is its own route, so these are navigation tabs — the current
+  // season is highlighted.
   const all = await listSeasonDrafts(admin);
-  const thisYear = all.find((d) => d.id === id)?.year ?? 0;
-  const others = all.filter((d) => d.id !== id);
 
   return (
     <>
-      <RematchDraftRoom initial={initial} myManagerId={manager?.id ?? null} />
-
-      {others.length > 0 && (
-        <section className="mt-6 rounded-md border border-line bg-surface p-4">
-          <h2 className="mb-3 text-xs uppercase tracking-wide text-muted">
-            {others.every((d) => d.year < thisYear) ? "Past drafts" : "Other seasons"}
-          </h2>
-          <ul className="flex flex-col gap-2">
-            {others.map((d) => (
-              <li key={d.id}>
-                <Link
-                  href={`/rematch-draft/${d.id}`}
-                  className="flex items-center justify-between gap-2 rounded-md bg-canvas px-3 py-2 hover:bg-surface-2"
-                >
-                  <span className="nameplate-type text-ink">{d.label}</span>
-                  <span className="text-xs uppercase tracking-wide text-muted">
-                    Open →
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {all.length > 1 && (
+        <div
+          role="tablist"
+          aria-label="Season"
+          className="mb-6 flex gap-1 border-b border-line"
+        >
+          {all.map((d) => {
+            const on = d.id === id;
+            return (
+              <Link
+                key={d.id}
+                href={`/rematch-draft/${d.id}`}
+                role="tab"
+                aria-selected={on}
+                aria-current={on ? "page" : undefined}
+                className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${
+                  on
+                    ? "border-brand text-ink"
+                    : "border-transparent text-muted hover:text-ink"
+                }`}
+              >
+                {seasonSpanLabel(d.year)}
+              </Link>
+            );
+          })}
+        </div>
       )}
+
+      <RematchDraftRoom initial={initial} myManagerId={manager?.id ?? null} />
     </>
   );
 }
