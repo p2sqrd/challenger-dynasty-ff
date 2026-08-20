@@ -21,7 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Nameplate } from "@/components/Nameplate";
 import { RankingReadView } from "@/components/RankingReadView";
-import type { ManagerCard, RankingEntry } from "@/lib/rankings";
+import type { ManagerCard, RankingEntry, RankingKind } from "@/lib/rankings";
 
 const STANDARD_NEEDS = ["QB", "RB", "WR", "TE"] as const;
 
@@ -180,19 +180,22 @@ function SortableRow({
 }
 
 /**
- * Author-only Post-Keeper ranking editor: drag to reorder the stack, toggle
- * draft-need chips, and write each manager's blurb. Save keeps a private
- * draft; Publish reveals it to the league and blasts a notification. Once
- * published, Save silently pushes updates live.
+ * Author-only ranking editor: drag to reorder the stack, toggle draft-need
+ * chips, and write each manager's blurb. Save keeps a private draft; Publish
+ * reveals it to the league and blasts a notification. Once published, Save
+ * silently pushes updates live. `kind` selects which board is being edited
+ * (post-keeper or post-draft).
  */
 export function RankingEditor({
   cards,
   initialEntries,
   published,
+  kind,
 }: {
   cards: ManagerCard[];
   initialEntries: RankingEntry[];
   published: boolean;
+  kind: RankingKind;
 }) {
   const router = useRouter();
   const cardById = useMemo(
@@ -201,7 +204,7 @@ export function RankingEditor({
   );
 
   // Seed editor order from saved entries, then append any unranked manager in
-  // the order loadPostKeeperCards already placed them (budget desc).
+  // the order loadRankingCards already placed them (budget desc).
   const [rows, setRows] = useState<EditRow[]>(() => {
     const seeded = new Map(initialEntries.map((e) => [e.managerId, e]));
     return cards.map((c) => {
@@ -256,7 +259,7 @@ export function RankingEditor({
     const res = await fetch("/api/rankings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "post_keeper", entries }),
+      body: JSON.stringify({ kind, entries }),
     });
     setBusy(null);
     if (!res.ok) {
@@ -276,7 +279,7 @@ export function RankingEditor({
     const saveRes = await fetch("/api/rankings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "post_keeper", entries }),
+      body: JSON.stringify({ kind, entries }),
     });
     if (!saveRes.ok) {
       const body = await saveRes.json().catch(() => ({}));
@@ -287,7 +290,7 @@ export function RankingEditor({
     const res = await fetch("/api/rankings/publish", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "post_keeper" }),
+      body: JSON.stringify({ kind }),
     });
     setBusy(null);
     if (!res.ok) {
