@@ -22,11 +22,20 @@ export default async function RankingsPage() {
   const supabase = await createClient();
   const manager = await getCurrentManager(supabase);
 
-  const { data: season } = await supabase
-    .from("seasons")
-    .select("id, year, starting_budget, keeper_deadline")
-    .eq("status", "active")
-    .single();
+  const [{ data: season }, { data: priorSeason }] = await Promise.all([
+    supabase
+      .from("seasons")
+      .select("id, year, starting_budget, keeper_deadline")
+      .eq("status", "active")
+      .single(),
+    supabase
+      .from("seasons")
+      .select("id")
+      .eq("status", "closed")
+      .order("year", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   if (!season) {
     return (
@@ -37,6 +46,7 @@ export default async function RankingsPage() {
     );
   }
 
+  const keeperSeasonId = priorSeason?.id ?? season.id;
   const isAuthor = manager?.is_ranking_author === true;
 
   // Both boards for the season. RLS returns a row only when it's published, or
@@ -58,14 +68,14 @@ export default async function RankingsPage() {
   // Post-Keeper is now locked — read-only for everyone, authors included. Its
   // cards are needed whenever the viewer can see the board at all.
   const keeperCards = keeper
-    ? await loadRankingCards(supabase, season, manager?.id ?? null, keeperEntries)
+    ? await loadRankingCards(supabase, season, manager?.id ?? null, keeperEntries, { keeperSeasonId })
     : [];
 
   // Post-Draft is the editable board now — authors load cards to edit; everyone
   // else only needs them once it's published.
   const draftCards =
     isAuthor || draft
-      ? await loadRankingCards(supabase, season, manager?.id ?? null, draftEntries)
+      ? await loadRankingCards(supabase, season, manager?.id ?? null, draftEntries, { keeperSeasonId })
       : [];
 
   const currentYear = (
