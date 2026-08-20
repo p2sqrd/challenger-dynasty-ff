@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { seasonSpanLabel } from "@/lib/season-label";
 import {
   REMATCH_WEEKS,
   buildBoard,
@@ -126,8 +127,8 @@ export async function ensureSeasonDraft(
   if (!finishOrder) {
     return {
       error:
-        `No ${season.year - 1} finishing order recorded yet — add it to ` +
-        `FINISH_BY_YEAR in src/lib/rematch-draft.ts and reload.`,
+        `The ${seasonSpanLabel(season.year)} Rematch Draft opens once last ` +
+        `season's final playoff standings are recorded.`,
     };
   }
 
@@ -155,7 +156,7 @@ export async function ensureSeasonDraft(
     .from("rematch_drafts")
     .insert({
       season_id: season.id,
-      label: `${season.year} Rematch Draft`,
+      label: `${seasonSpanLabel(season.year)} Rematch Draft`,
       order_manager_ids: orderManagerIds,
     })
     .select("id")

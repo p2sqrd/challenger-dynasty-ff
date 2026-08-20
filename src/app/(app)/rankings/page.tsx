@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
 import { loadRankingCards } from "@/lib/rankings";
+import { seasonSpanLabel } from "@/lib/season-label";
 import type { RankingEntry, RankingKind } from "@/types/database";
 import { PageHeader } from "@/components/PageHeader";
 import { RankingReadView } from "@/components/RankingReadView";
@@ -121,7 +122,11 @@ export default async function RankingsPage() {
 
       <RankingsYearTabs
         tabs={[
-          { key: "current", label: `${season.year}`, panel: currentYear },
+          {
+            key: "current",
+            label: seasonSpanLabel(season.year),
+            panel: currentYear,
+          },
           { key: "2025", label: "2025", panel: <Rankings2025 /> },
         ]}
       />
