@@ -43,6 +43,12 @@ interface Season {
   keeper_deadline: string | null;
 }
 
+interface LoadOptions {
+  /** When keepers live on a different season (e.g. prior season after a
+   *  rollover), pass that season's id so the roster board reads them. */
+  keeperSeasonId?: string;
+}
+
 /**
  * Build the per-team ranking cards for the active season, in ranked order.
  * Shared by both boards (post-keeper and post-draft) — the roster/budget
@@ -59,8 +65,10 @@ export async function loadRankingCards(
   supabase: SupabaseClient<Database>,
   season: Season,
   viewerManagerId: string | null,
-  entries: RankingEntry[]
+  entries: RankingEntry[],
+  opts: LoadOptions = {}
 ): Promise<ManagerCard[]> {
+  const keeperSeason = opts.keeperSeasonId ?? season.id;
   // Active managers this season = those with a budget entry (drops departed
   // members), matching the Budget / League Keepers views.
   const [{ data: managers }, { data: ledger }, { data: keepers }] =
@@ -70,7 +78,7 @@ export async function loadRankingCards(
       supabase
         .from("keepers")
         .select("manager_id, player_id, player_name, new_price")
-        .eq("season_id", season.id),
+        .eq("season_id", keeperSeason),
     ]);
 
   const activeIds = new Set((ledger ?? []).map((l) => l.manager_id));
