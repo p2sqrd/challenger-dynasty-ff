@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Nameplate } from "@/components/Nameplate";
 
 // ---------------------------------------------------------------------------
 // Config — update LEAGUE_ID each Sleeper season (dynasty leagues get a new ID
@@ -249,7 +250,7 @@ function HighlightPanels({ teams }: { teams: TeamData[] }) {
   const all = teams.flatMap((t) =>
     t.players
       .filter((p) => p.keeperCost !== null && p.dynastyValue > 0)
-      .map((p) => ({ ...p, teamName: t.teamName }))
+      .map((p) => ({ ...p, ownerAlias: t.ownerName }))
   );
 
   const steals = [...all].sort((a, b) => b.surplus - a.surplus).slice(0, 8);
@@ -269,7 +270,7 @@ function HighlightPanels({ teams }: { teams: TeamData[] }) {
             <div className="flex min-w-0 items-center gap-1 text-xs">
               <PosBadge pos={p.position} />
               <span className="truncate font-medium text-ink">{p.name}</span>
-              <span className="shrink-0 text-muted/50">{p.teamName}</span>
+              <Nameplate alias={p.ownerAlias} size="sm" className="shrink-0 scale-75 origin-left" />
             </div>
             <div className="ml-2 flex shrink-0 items-center gap-2 text-xs">
               <span className="text-muted/60">
@@ -295,7 +296,7 @@ function HighlightPanels({ teams }: { teams: TeamData[] }) {
             <div className="flex min-w-0 items-center gap-1 text-xs">
               <PosBadge pos={p.position} />
               <span className="truncate font-medium text-ink">{p.name}</span>
-              <span className="shrink-0 text-muted/50">{p.teamName}</span>
+              <Nameplate alias={p.ownerAlias} size="sm" className="shrink-0 scale-75 origin-left" />
             </div>
             <div className="ml-2 flex shrink-0 items-center gap-2 text-xs">
               <span className="text-muted/60">
@@ -647,26 +648,7 @@ export function DynastyPowerRankings() {
                 <span className={`text-base font-bold ${rankColor}`}>
                   {idx + 1}
                 </span>
-                <div className="flex min-w-0 items-center gap-2.5">
-                  {team.avatar && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={team.avatar}
-                      alt=""
-                      className="h-7 w-7 shrink-0 rounded-md"
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-ink">
-                      {team.teamName}
-                    </div>
-                    {team.teamName !== team.ownerName && (
-                      <div className="text-[11px] text-muted/60">
-                        {team.ownerName}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <Nameplate alias={team.ownerName} size="sm" />
                 <span className="tabular text-right text-sm text-ink/80">
                   {fmtVal(team.totalDV)}
                 </span>
