@@ -3,7 +3,7 @@
  * in the run-up to (or during) the auction. Flip to `false` to reopen them
  * once the draft is complete.
  */
-export const FIRE_SALE_CREATION_LOCKED = true;
+export const FIRE_SALE_CREATION_LOCKED = false;
 
 /**
  * The keeper rule keeps every manager's auction budget between $125 and $275.

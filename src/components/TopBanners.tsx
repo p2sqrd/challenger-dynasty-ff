@@ -67,15 +67,6 @@ export async function TopBanners() {
     .eq("season_id", season.id)
     .eq("status", "active");
 
-  // Post-Keeper rankings banner — only once the authors publish (RLS hands a
-  // draft row to authors too, so check the flag, not mere row existence).
-  const { data: ranking } = await supabase
-    .from("rankings")
-    .select("published")
-    .eq("season_id", season.id)
-    .eq("kind", "post_keeper")
-    .maybeSingle();
-  const rankingsPublished = ranking?.published === true;
   const activeSales = ((sales ?? []) as ActiveSale[]).filter(
     (s) => new Date(s.deadline).getTime() > now
   );
@@ -134,17 +125,15 @@ export async function TopBanners() {
           </Banner>
         ))}
 
-      {rankingsPublished && (
-        <Banner
-          href="/rankings"
-          accent="--color-gold"
-          icon="🏆"
-          cta="View rankings"
-        >
-          <span className="font-medium">Post-Keeper Rankings are out</span> —
-          see where your team lands.
-        </Banner>
-      )}
+      <Banner
+        href="/rankings"
+        accent="--color-brand"
+        icon="📊"
+        cta="View rankings"
+      >
+        <span className="font-medium">Dynasty Power Rankings are live</span> —
+        see how your roster stacks up.
+      </Banner>
     </div>
   );
 }

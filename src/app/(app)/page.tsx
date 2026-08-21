@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentManager } from "@/lib/managers";
 import { getManagerAuctionBudget } from "@/lib/budget";
 import { resolveTeam } from "@/lib/teams";
-import { STANDINGS } from "@/lib/standings-data";
 import type { VoteChoice } from "@/types/database";
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
@@ -115,14 +114,10 @@ export default async function HomePage() {
     : [];
   budgets.sort((a, b) => b.budget - a.budget);
 
-  // Last season's (2025) finish.
-  const standings2025 = STANDINGS.filter((s) => s.byYear[2025]?.w != null)
-    .map((s) => ({
-      name: s.name,
-      w: s.byYear[2025]!.w!,
-      l: s.byYear[2025]!.l!,
-    }))
-    .sort((a, b) => b.w - a.w || a.l - b.l);
+  // Current season standings — everyone starts 0-0.
+  const standings2026 = activeManagers
+    .map((m) => ({ name: m.display_name, w: 0, l: 0 }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   // Rule-proposal yes/no tallies.
   const tally = new Map<string, { yes: number; no: number; abstain: number }>();
@@ -148,13 +143,13 @@ export default async function HomePage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Standings (last season) */}
-        <Card href="/standings" title="2025 Standings" cta="All-time">
-          {standings2025.length === 0 ? (
+        {/* Standings (current season) */}
+        <Card href="/standings" title="2026 Standings" cta="All-time">
+          {standings2026.length === 0 ? (
             <p className="text-sm text-muted">No standings yet.</p>
           ) : (
             <ul className="space-y-1.5">
-              {standings2025.slice(0, 6).map((s, i) => (
+              {standings2026.slice(0, 6).map((s, i) => (
                 <li
                   key={s.name}
                   className="flex items-center justify-between text-sm"
@@ -172,7 +167,7 @@ export default async function HomePage() {
               ))}
             </ul>
           )}
-          <p className="mt-2 text-xs text-muted">Last season&apos;s finish.</p>
+          <p className="mt-2 text-xs text-muted">Season starts soon — everyone&apos;s 0-0.</p>
         </Card>
 
         {/* Budgets */}
