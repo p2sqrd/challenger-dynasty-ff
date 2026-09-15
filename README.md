@@ -1,7 +1,7 @@
 # Challenger Dynasty FF
 
 Web app replacing the manual Google Sheet for the Challenger Fantasy Football
-dynasty/keeper league (Sleeper league `1180096336035880960`). Next.js +
+dynasty/keeper league (Sleeper league `1385714891695874048`). Next.js +
 TypeScript, Supabase (Postgres + auth), deployed on Vercel.
 
 Phase 1: auth, manager accounts, historical `draft_records`, keeper selection
