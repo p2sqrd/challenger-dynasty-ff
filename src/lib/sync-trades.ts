@@ -43,9 +43,11 @@ export async function syncTrades(
   if (!season) {
     throw new Error("No active season configured.");
   }
-  if (season.year !== year) {
+  // The app's season.year is the ending calendar year of the span ('26-'27 →
+  // 2027), while Sleeper's season is the NFL year (2026).
+  if (season.year !== year && season.year !== year + 1) {
     throw new Error(
-      `The configured Sleeper league is for ${year}, but the active season is ${season.year}. Update SLEEPER_LEAGUE_ID to the current league.`
+      `The configured Sleeper league is for NFL ${year}, but the active season is ${season.year}. Update SLEEPER_LEAGUE_ID to the current league.`
     );
   }
 
