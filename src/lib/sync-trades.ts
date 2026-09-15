@@ -61,12 +61,11 @@ export async function syncTrades(
     managers.map((m) => [m.sleeper_roster_id, m.id])
   );
 
-  // Pull the season's already-imported Sleeper ids once, rather than a query
-  // per candidate trade.
+  // Pull ALL already-imported Sleeper ids (across every season) so we never
+  // collide with the table-wide unique constraint on sleeper_transaction_id.
   const { data: existing } = await supabase
     .from("trades")
     .select("sleeper_transaction_id")
-    .eq("season_id", season.id)
     .not("sleeper_transaction_id", "is", null);
   const seen = new Set(
     (existing ?? []).map((t) => t.sleeper_transaction_id as string)
