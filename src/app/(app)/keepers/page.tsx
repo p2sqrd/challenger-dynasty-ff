@@ -123,7 +123,7 @@ async function MyKeepers({
   const team = resolveTeam(manager.display_name);
 
   const { data: existingKeepers } = preseason
-    ? { data: [] as Awaited<ReturnType<typeof supabase.from<"keepers">>>["data"] }
+    ? { data: [] as { id: string; player_id: string; player_name: string; new_price: number }[] }
     : await supabase
         .from("keepers")
         .select("*")
