@@ -191,26 +191,19 @@ async function MyKeepers({
     );
   }
 
-  // In preseason (mid-season planning) keeper costs come from the CURRENT
-  // season's draft records — the roster you have now. During the real keeper
-  // window the prices come from the prior season as usual.
-  let recordsSeasonId: string | null = null;
-  if (preseason) {
-    recordsSeasonId = season.id;
-  } else {
-    const { data: priorSeason } = await supabase
-      .from("seasons")
-      .select("id")
-      .eq("year", season.year - 1)
-      .maybeSingle();
-    recordsSeasonId = priorSeason?.id ?? null;
-  }
+  const { data: priorSeason } = await supabase
+    .from("seasons")
+    .select("id")
+    .eq("year", season.year - 1)
+    .maybeSingle();
 
-  const { data: priorRecords } = recordsSeasonId
+  // A keeper's salary follows the player across trades, so look up prior
+  // prices by player across the whole league, not just this manager's picks.
+  const { data: priorRecords } = priorSeason
     ? await supabase
         .from("draft_records")
         .select("*")
-        .eq("season_id", recordsSeasonId)
+        .eq("season_id", priorSeason.id)
     : { data: [] };
 
   const auctionBudget = await getManagerAuctionBudget(

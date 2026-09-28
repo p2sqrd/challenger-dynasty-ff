@@ -24,12 +24,9 @@ export default async function SimulateKeepersPage() {
     );
   }
 
-  // Mid-season planning: no keeper deadline set yet — use this season's draft
-  // records for keeper pricing instead of last season's.
   const preseason = !season.keeper_deadline;
-  const keeperSeasonYear = preseason ? season.year + 1 : undefined;
 
-  const teams = await loadSimTeams(supabase, season, keeperSeasonYear);
+  const teams = await loadSimTeams(supabase, season);
 
   // Pre-fill keepers from the DB. The keepers RLS returns only your own picks
   // before the deadline (everyone's after it), so this pre-fills your real
@@ -56,7 +53,6 @@ export default async function SimulateKeepersPage() {
         teams={teams}
         prefill={prefill}
         myManagerId={manager?.id ?? null}
-        keeperSeasonYear={keeperSeasonYear}
       />
     </div>
   );
