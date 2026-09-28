@@ -13,8 +13,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not linked to a manager" }, { status: 401 });
   }
 
-  const { selections } = (await request.json().catch(() => ({}))) as {
+  const { selections, keeperSeasonYear } = (await request.json().catch(() => ({}))) as {
     selections?: SimSelections;
+    keeperSeasonYear?: number;
   };
   if (!selections || typeof selections !== "object") {
     return NextResponse.json({ error: "Missing selections." }, { status: 400 });
@@ -29,6 +30,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No active season." }, { status: 400 });
   }
 
-  const result = await computeDraftPool(supabase, season, selections);
+  const result = await computeDraftPool(supabase, season, selections, keeperSeasonYear);
   return NextResponse.json(result);
 }

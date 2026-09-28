@@ -80,17 +80,22 @@ async function keeperCostMap(
 /**
  * Per-team keeper pickers for the Simulate Keepers page: every manager's
  * current roster with each player's keeper cost, plus their auction budget.
+ *
+ * `keeperSeasonYear` overrides which season's draft records feed the keeper
+ * cost map — pass the current `season.year` for mid-season planning so costs
+ * reflect this year's prices rather than last year's.
  */
 export async function loadSimTeams(
   supabase: SupabaseClient<Database>,
-  season: Season
+  season: Season,
+  keeperSeasonYear?: number
 ): Promise<SimTeam[]> {
   const { data: managers } = await supabase
     .from("managers")
     .select("id, display_name, sleeper_roster_id");
   const mgrs = managers ?? [];
 
-  const cost = await keeperCostMap(supabase, season.year);
+  const cost = await keeperCostMap(supabase, keeperSeasonYear ?? season.year);
 
   const byRoster = new Map<number, string[]>();
   try {
@@ -151,7 +156,8 @@ export async function loadSimTeams(
 export async function computeDraftPool(
   supabase: SupabaseClient<Database>,
   season: Season,
-  selections: SimSelections
+  selections: SimSelections,
+  keeperSeasonYear?: number
 ): Promise<{ pool: PoolRow[]; budgets: SimBudget[] }> {
   const { data: managers } = await supabase
     .from("managers")
@@ -161,7 +167,7 @@ export async function computeDraftPool(
     mgrs.map((m) => [m.id, resolveTeam(m.display_name).name])
   );
 
-  const cost = await keeperCostMap(supabase, season.year);
+  const cost = await keeperCostMap(supabase, keeperSeasonYear ?? season.year);
 
   const playerToManagerId = new Map<string, string>();
   // Current teams only — departed members have no Sleeper roster.

@@ -10,6 +10,7 @@ import { formatLeagueDateTime } from "@/lib/datetime";
 import { ROSTER_SIZE } from "@/lib/rules/budget-validation";
 import { PageHeader } from "@/components/PageHeader";
 import { Nameplate } from "@/components/Nameplate";
+import { RefreshRosterButton } from "@/components/RefreshRosterButton";
 import { KeeperSelectionForm } from "@/components/KeeperSelectionForm";
 import type { EligiblePlayer } from "@/components/KeeperSelectionForm";
 
@@ -56,12 +57,17 @@ export default async function SetMyKeepersPage() {
     ? formatLeagueDateTime(season.keeper_deadline)
     : null;
 
+  // Before a keeper deadline is configured (mid-season planning), show the
+  // full form but with submissions disabled so managers can plan ahead.
+  const preseason = locked || !season.keeper_deadline;
+
+  const subtitle = preseason
+    ? `Plan your keepers for the ${season.year} auction — rosters update as trades and waivers happen on Sleeper.`
+    : `Lock in the players you're carrying into the ${season.year} auction.`;
+
   return (
     <div>
-      <PageHeader
-        title="Set My Keepers"
-        subtitle="Lock in the players you're carrying into the 2026 auction."
-      />
+      <PageHeader title="Set My Keepers" subtitle={subtitle} />
       {reopened && (
         <div className="mb-4 rounded-md border border-brand/40 bg-brand/10 p-4 text-sm">
           <p className="font-medium text-ink">Your keepers were reopened</p>
@@ -75,6 +81,7 @@ export default async function SetMyKeepersPage() {
         manager={manager}
         season={season}
         locked={locked}
+        preseason={preseason}
         deadlineLabel={deadlineLabel}
       />
     </div>
@@ -94,11 +101,13 @@ async function MyKeepers({
   manager,
   season,
   locked,
+  preseason,
   deadlineLabel,
 }: {
   manager: Manager | null;
   season: Season;
   locked: boolean;
+  preseason: boolean;
   deadlineLabel: string | null;
 }) {
   if (!manager) {
@@ -113,18 +122,23 @@ async function MyKeepers({
   const supabase = await createClient();
   const team = resolveTeam(manager.display_name);
 
-  const { data: existingKeepers } = await supabase
-    .from("keepers")
-    .select("*")
-    .eq("season_id", season.id)
-    .eq("manager_id", manager.id);
+  const { data: existingKeepers } = preseason
+    ? { data: [] as Awaited<ReturnType<typeof supabase.from<"keepers">>>["data"] }
+    : await supabase
+        .from("keepers")
+        .select("*")
+        .eq("season_id", season.id)
+        .eq("manager_id", manager.id);
 
   // Keepers only count once you've voted on every open rule proposal.
-  const unvoted = await unvotedProposalCount(supabase, season.id, manager.id);
+  const unvoted = preseason
+    ? 0
+    : await unvotedProposalCount(supabase, season.id, manager.id);
   const hasKeepers = (existingKeepers ?? []).length > 0;
 
   // Once the deadline has passed, keepers are locked — show a read-only card.
-  if (locked) {
+  // In preseason mode we skip this even though `locked` may be true.
+  if (locked && !preseason) {
     const kept = existingKeepers ?? [];
     const total = kept.reduce((sum, k) => sum + k.new_price, 0);
     // If they never finished voting, their set isn't accepted — voting closed
@@ -177,19 +191,26 @@ async function MyKeepers({
     );
   }
 
-  const { data: priorSeason } = await supabase
-    .from("seasons")
-    .select("id")
-    .eq("year", season.year - 1)
-    .maybeSingle();
+  // In preseason (mid-season planning) keeper costs come from the CURRENT
+  // season's draft records — the roster you have now. During the real keeper
+  // window the prices come from the prior season as usual.
+  let recordsSeasonId: string | null = null;
+  if (preseason) {
+    recordsSeasonId = season.id;
+  } else {
+    const { data: priorSeason } = await supabase
+      .from("seasons")
+      .select("id")
+      .eq("year", season.year - 1)
+      .maybeSingle();
+    recordsSeasonId = priorSeason?.id ?? null;
+  }
 
-  // A keeper's salary follows the player across trades, so look up prior
-  // prices by player across the whole league, not just this manager's picks.
-  const { data: priorRecords } = priorSeason
+  const { data: priorRecords } = recordsSeasonId
     ? await supabase
         .from("draft_records")
         .select("*")
-        .eq("season_id", priorSeason.id)
+        .eq("season_id", recordsSeasonId)
     : { data: [] };
 
   const auctionBudget = await getManagerAuctionBudget(
@@ -269,7 +290,10 @@ async function MyKeepers({
           like, as long as you can still fill all {ROSTER_SIZE} roster spots ($1
           minimum each).
         </p>
-        <Nameplate team={team} />
+        <div className="flex items-center gap-3">
+          {preseason && <RefreshRosterButton />}
+          <Nameplate team={team} />
+        </div>
       </div>
 
       <KeeperSelectionForm
@@ -280,6 +304,7 @@ async function MyKeepers({
         existingSelections={existingKeepers ?? []}
         deadlineLabel={deadlineLabel}
         unvotedCount={unvoted}
+        preseason={preseason}
       />
     </div>
   );
