@@ -42,6 +42,7 @@ export function KeeperSelectionForm({
   existingSelections,
   deadlineLabel,
   unvotedCount = 0,
+  preseason = false,
 }: {
   seasonId: string;
   startingBudget: number;
@@ -52,6 +53,8 @@ export function KeeperSelectionForm({
   /** Open rule proposals this manager hasn't voted on. Keepers can't be
    *  submitted until this is 0. */
   unvotedCount?: number;
+  /** Mid-season planning mode: form works but submissions are disabled. */
+  preseason?: boolean;
 }) {
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(existingSelections.map((s) => s.player_id))
@@ -102,7 +105,7 @@ export function KeeperSelectionForm({
   });
   const allComputable = selections.every((s) => s.price.computable);
   const mustVote = unvotedCount > 0;
-  const canSubmit = roster.ok && allComputable && !submitting && !mustVote;
+  const canSubmit = roster.ok && allComputable && !submitting && !mustVote && !preseason;
   const remaining = roster.remainingBudget;
 
   // Slot keepers into the league roster for the tower. Iterate in *selection*
@@ -271,7 +274,15 @@ export function KeeperSelectionForm({
         >
           {submitting ? "Submitting…" : saved ? "Update keepers" : "Submit keepers"}
         </button>
-        {mustVote ? (
+        {preseason ? (
+          <div className="mt-3 rounded-md border border-line bg-surface-2 p-3 text-center text-xs">
+            <p className="font-medium text-muted">Planning mode</p>
+            <p className="mt-1 text-muted">
+              Keepers can only be submitted after the season ends and a deadline
+              is set. Use this to plan ahead — your selections aren&apos;t saved yet.
+            </p>
+          </div>
+        ) : mustVote ? (
           <div className="mt-3 rounded-md border border-pending/40 bg-pending/10 p-3 text-center text-xs">
             <p className="font-medium text-pending">Vote required first</p>
             <p className="mt-1 text-muted">

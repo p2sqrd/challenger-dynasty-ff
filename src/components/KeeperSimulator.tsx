@@ -30,10 +30,12 @@ export function KeeperSimulator({
   teams,
   prefill,
   myManagerId,
+  keeperSeasonYear,
 }: {
   teams: SimTeam[];
   prefill: SimSelections;
   myManagerId: string | null;
+  keeperSeasonYear?: number;
 }) {
   const [selections, setSelections] = useState<Record<string, Set<string>>>(
     () => {
@@ -155,7 +157,7 @@ export function KeeperSimulator({
       const res = await fetch("/api/keeper-sim/pool", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selections: exportSelections() }),
+        body: JSON.stringify({ selections: exportSelections(), keeperSeasonYear }),
       });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
