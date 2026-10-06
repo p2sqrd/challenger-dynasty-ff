@@ -15,15 +15,22 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { cashAmount, sideManagerId } = (await request
+  const { cashAmount, faabAmount, sideManagerId } = (await request
     .json()
     .catch(() => ({}))) as {
     cashAmount?: number;
+    faabAmount?: number;
     sideManagerId?: string;
   };
   if (cashAmount === undefined || !Number.isInteger(cashAmount)) {
     return NextResponse.json(
       { error: "cashAmount must be an integer" },
+      { status: 400 }
+    );
+  }
+  if (faabAmount !== undefined && !Number.isInteger(faabAmount)) {
+    return NextResponse.json(
+      { error: "faabAmount must be an integer" },
       { status: 400 }
     );
   }
@@ -69,7 +76,10 @@ export async function POST(
 
   const { error: updateError } = await admin
     .from("trade_sides")
-    .update({ cash_amount: cashAmount })
+    .update({
+      cash_amount: cashAmount,
+      ...(faabAmount !== undefined && { faab_amount: faabAmount }),
+    })
     .eq("id", primary.id);
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
@@ -80,7 +90,10 @@ export async function POST(
     if (otherSide) {
       const { error: mirrorError } = await admin
         .from("trade_sides")
-        .update({ cash_amount: -cashAmount })
+        .update({
+          cash_amount: -cashAmount,
+          ...(faabAmount !== undefined && { faab_amount: -faabAmount }),
+        })
         .eq("id", otherSide.id);
       if (mirrorError) {
         return NextResponse.json(

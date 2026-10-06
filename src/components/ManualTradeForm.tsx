@@ -13,9 +13,10 @@ interface SideState {
   managerId: string;
   players: string;
   cash: string;
+  faab: string;
 }
 
-const emptySide: SideState = { managerId: "", players: "", cash: "0" };
+const emptySide: SideState = { managerId: "", players: "", cash: "0", faab: "0" };
 
 /**
  * Commissioner-only form to author a trade by hand (no Sleeper import). Two
@@ -61,6 +62,7 @@ export function ManualTradeForm({
         .map((p) => p.trim())
         .filter(Boolean),
       cashAmount: Number(s.cash || "0"),
+      faabAmount: Number(s.faab || "0"),
     }));
 
     if (payloadSides.some((s) => !s.managerId)) {
@@ -69,6 +71,10 @@ export function ManualTradeForm({
     }
     if (payloadSides.some((s) => !Number.isInteger(s.cashAmount))) {
       setError("Cash must be a whole number (negative if paying).");
+      return;
+    }
+    if (payloadSides.some((s) => !Number.isInteger(s.faabAmount))) {
+      setError("FAAB must be a whole number (negative if paying).");
       return;
     }
     if (
@@ -110,7 +116,7 @@ export function ManualTradeForm({
     <div className="rounded-md border border-line bg-surface p-5">
       <div className="space-y-4">
         {sides.map((side, i) => (
-          <div key={i} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
+          <div key={i} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto_auto]">
             <select
               value={side.managerId}
               onChange={(e) => setSide(i, { managerId: e.target.value })}
@@ -135,6 +141,15 @@ export function ManualTradeForm({
               value={side.cash}
               onChange={(e) => setSide(i, { cash: e.target.value })}
               title="Cash (negative if paying)"
+              placeholder="Cash"
+              className="tabular w-24 rounded border border-line bg-canvas px-2 py-1.5 text-sm text-ink"
+            />
+            <input
+              type="number"
+              value={side.faab}
+              onChange={(e) => setSide(i, { faab: e.target.value })}
+              title="FAAB (negative if paying)"
+              placeholder="FAAB"
               className="tabular w-24 rounded border border-line bg-canvas px-2 py-1.5 text-sm text-ink"
             />
           </div>
