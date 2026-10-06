@@ -5,6 +5,7 @@ export interface TradeSideView {
   managerName: string;
   playersReceived: string[];
   cashAmount: number | null;
+  faabAmount: number | null;
 }
 
 function Cash({ amount }: { amount: number | null }) {
@@ -12,8 +13,17 @@ function Cash({ amount }: { amount: number | null }) {
   const positive = amount > 0;
   return (
     <span className="tabular text-xs text-muted">
-      {positive ? "▲ +" : "▼ −"}
-      {Math.abs(amount)} cash
+      {positive ? "▲ +" : "▼ −"}${Math.abs(amount)} cash
+    </span>
+  );
+}
+
+function Faab({ amount }: { amount: number | null }) {
+  if (!amount) return null;
+  const positive = amount > 0;
+  return (
+    <span className="tabular text-xs text-muted">
+      {positive ? "▲ +" : "▼ −"}${Math.abs(amount)} FAAB
     </span>
   );
 }
@@ -29,8 +39,9 @@ function SidePanel({ side }: { side: TradeSideView }) {
           <li className="text-muted">—</li>
         )}
       </ul>
-      <div className="mt-1">
+      <div className="mt-1 space-y-0.5">
         <Cash amount={side.cashAmount} />
+        <Faab amount={side.faabAmount} />
       </div>
     </div>
   );

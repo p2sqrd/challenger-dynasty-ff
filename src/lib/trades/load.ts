@@ -15,6 +15,7 @@ export interface TradeSideRow {
   manager_id: string;
   players_received: string[];
   cash_amount: number | null;
+  faab_amount: number | null;
 }
 
 export interface ViewSide {
@@ -22,6 +23,7 @@ export interface ViewSide {
   managerName: string;
   playersReceived: string[];
   cashAmount: number | null;
+  faabAmount: number | null;
 }
 
 /**
@@ -51,7 +53,7 @@ export async function loadTradesContext(
     tradeIds.length > 0
       ? await supabase
           .from("trade_sides")
-          .select("trade_id, manager_id, players_received, cash_amount")
+          .select("trade_id, manager_id, players_received, cash_amount, faab_amount")
           .in("trade_id", tradeIds)
       : { data: [] as TradeSideRow[] };
   const sides = (sidesData ?? []) as TradeSideRow[];
@@ -75,6 +77,7 @@ export async function loadTradesContext(
       managerName: nameById.get(s.manager_id) ?? s.manager_id,
       playersReceived: s.players_received.map(playerName),
       cashAmount: s.cash_amount,
+      faabAmount: s.faab_amount,
     }));
 
   return {

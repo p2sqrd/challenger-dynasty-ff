@@ -41,9 +41,13 @@ export function ActiveTradeCard({
   const [error, setError] = useState("");
   const [amount, setAmount] = useState("0");
   const [direction, setDirection] = useState<CashDirection>("receive");
+  const [faabAmount, setFaabAmount] = useState("0");
+  const [faabDirection, setFaabDirection] = useState<CashDirection>("receive");
   const [editingCash, setEditingCash] = useState(false);
   const [editAmount, setEditAmount] = useState("0");
   const [editDirection, setEditDirection] = useState<CashDirection>("receive");
+  const [editFaabAmount, setEditFaabAmount] = useState("0");
+  const [editFaabDirection, setEditFaabDirection] = useState<CashDirection>("receive");
   const [editRefId, setEditRefId] = useState(() => sides[0]?.managerId ?? "");
 
   // A party to the trade enters cash from their own side. A commissioner who
@@ -61,13 +65,19 @@ export function ActiveTradeCard({
       setError("Enter a whole dollar amount.");
       return;
     }
+    const faabMag = Number(faabAmount);
+    if (!Number.isInteger(faabMag) || faabMag < 0) {
+      setError("Enter a whole FAAB amount.");
+      return;
+    }
     setBusy(true);
     setError("");
     const signed = direction === "receive" ? mag : -mag;
+    const signedFaab = faabDirection === "receive" ? faabMag : -faabMag;
     const res = await fetch(`/api/trades/${tradeId}/cash`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cashAmount: signed, sideManagerId: refId }),
+      body: JSON.stringify({ cashAmount: signed, faabAmount: signedFaab, sideManagerId: refId }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -91,13 +101,19 @@ export function ActiveTradeCard({
       setError("Enter a whole dollar amount.");
       return;
     }
+    const faabMag = Number(editFaabAmount);
+    if (!Number.isInteger(faabMag) || faabMag < 0) {
+      setError("Enter a whole FAAB amount.");
+      return;
+    }
     setBusy(true);
     setError("");
     const signed = editDirection === "receive" ? mag : -mag;
+    const signedFaab = editFaabDirection === "receive" ? faabMag : -faabMag;
     const res = await fetch(`/api/trades/${tradeId}/update-cash`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cashAmount: signed, sideManagerId: editRefId }),
+      body: JSON.stringify({ cashAmount: signed, faabAmount: signedFaab, sideManagerId: editRefId }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -153,6 +169,18 @@ export function ActiveTradeCard({
             sendLabel={otherName ? `Sent to ${otherName}` : "Sent"}
             inputId={`cash-${tradeId}`}
           />
+          <div className="mb-2 mt-3 text-xs uppercase tracking-wide text-muted">
+            FAAB
+          </div>
+          <CashDirectionInput
+            amount={faabAmount}
+            onAmountChange={setFaabAmount}
+            direction={faabDirection}
+            onDirectionChange={setFaabDirection}
+            receiveLabel={otherName ? `Received from ${otherName}` : "Received"}
+            sendLabel={otherName ? `Sent to ${otherName}` : "Sent"}
+            inputId={`faab-${tradeId}`}
+          />
           <div className="mt-3">
             <button
               onClick={submitCash}
@@ -163,9 +191,9 @@ export function ActiveTradeCard({
             </button>
           </div>
           <p className="mt-2 text-xs text-muted">
-            No cash in this deal? Leave it at $0. Only one side needs cash
-            entered — the other is set automatically, then it moves to
-            commissioner approval.
+            No cash or FAAB in this deal? Leave them at $0. Only one side
+            needs values entered — the other is set automatically, then it
+            moves to commissioner approval.
           </p>
           {error && <p className="mt-2 text-rejected">{error}</p>}
         </div>
@@ -183,11 +211,11 @@ export function ActiveTradeCard({
           {editingCash ? (
             <div className="mt-4 border-t border-line pt-4 text-sm">
               <div className="mb-2 text-xs uppercase tracking-wide text-muted">
-                Edit cash
+                Edit cash &amp; FAAB
               </div>
               {sides.length > 1 && (
                 <label className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-                  Cash for
+                  For
                   <select
                     value={editRefId}
                     onChange={(e) => setEditRefId(e.target.value)}
@@ -201,6 +229,7 @@ export function ActiveTradeCard({
                   </select>
                 </label>
               )}
+              <div className="mb-1 text-xs text-muted">Cash</div>
               <CashDirectionInput
                 amount={editAmount}
                 onAmountChange={setEditAmount}
@@ -210,13 +239,23 @@ export function ActiveTradeCard({
                 sendLabel={sides.length === 2 ? `Sent to ${sides.find((s) => s.managerId !== editRefId)?.managerName ?? "other"}` : "Sent"}
                 inputId={`edit-cash-${tradeId}`}
               />
+              <div className="mb-1 mt-3 text-xs text-muted">FAAB</div>
+              <CashDirectionInput
+                amount={editFaabAmount}
+                onAmountChange={setEditFaabAmount}
+                direction={editFaabDirection}
+                onDirectionChange={setEditFaabDirection}
+                receiveLabel={sides.length === 2 ? `Received from ${sides.find((s) => s.managerId !== editRefId)?.managerName ?? "other"}` : "Received"}
+                sendLabel={sides.length === 2 ? `Sent to ${sides.find((s) => s.managerId !== editRefId)?.managerName ?? "other"}` : "Sent"}
+                inputId={`edit-faab-${tradeId}`}
+              />
               <div className="mt-3 flex items-center gap-2">
                 <button
                   onClick={updateCash}
                   disabled={busy}
                   className="rounded-md bg-brand px-3 py-1.5 font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
                 >
-                  {busy ? "Saving..." : "Save cash"}
+                  {busy ? "Saving..." : "Save"}
                 </button>
                 <button
                   onClick={() => { setEditingCash(false); setError(""); }}
@@ -247,7 +286,7 @@ export function ActiveTradeCard({
                 onClick={() => setEditingCash(true)}
                 className="ml-auto text-xs text-muted hover:text-ink"
               >
-                Edit cash
+                Edit cash / FAAB
               </button>
             </div>
           )}

@@ -7,6 +7,7 @@ interface SideInput {
   managerId: string;
   players: string[];
   cashAmount: number;
+  faabAmount: number;
 }
 
 /**
@@ -58,6 +59,12 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    if (s.faabAmount !== undefined && !Number.isInteger(s.faabAmount)) {
+      return NextResponse.json(
+        { error: "FAAB amounts must be whole numbers" },
+        { status: 400 }
+      );
+    }
   }
 
   const admin = createAdminClient();
@@ -88,6 +95,7 @@ export async function POST(request: Request) {
         .map((p) => p.trim())
         .filter(Boolean),
       cash_amount: s.cashAmount,
+      faab_amount: s.faabAmount ?? 0,
     }))
   );
   if (sidesError) {

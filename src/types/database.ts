@@ -418,6 +418,7 @@ export interface Database {
           manager_id: string;
           players_received: string[];
           cash_amount: number | null;
+          faab_amount: number | null;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["trade_sides"]["Row"]> & {
