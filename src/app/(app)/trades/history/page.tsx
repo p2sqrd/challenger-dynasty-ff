@@ -1,11 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentManager } from "@/lib/managers";
 import { loadTradesContext } from "@/lib/trades/load";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TradeSidesView } from "@/components/TradeSides";
+import { ReopenTradeButton } from "@/components/ReopenTradeButton";
 
 export default async function TradeHistoryPage() {
   const supabase = await createClient();
+  const manager = await getCurrentManager(supabase);
+  const isCommissioner = manager?.role === "commissioner";
 
   const { data: activeSeason } = await supabase
     .from("seasons")
@@ -44,12 +48,17 @@ export default async function TradeHistoryPage() {
               key={t.id}
               className="rounded-md border border-line bg-surface p-5"
             >
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <StatusBadge
                   status={t.status === "approved" ? "approved" : "rejected"}
                 />
-                <span className="tabular text-xs text-muted">
-                  {new Date(t.approved_at ?? t.created_at).toLocaleDateString()}
+                <span className="flex items-center gap-3">
+                  {isCommissioner && t.status === "approved" && (
+                    <ReopenTradeButton tradeId={t.id} />
+                  )}
+                  <span className="tabular text-xs text-muted">
+                    {new Date(t.approved_at ?? t.created_at).toLocaleDateString()}
+                  </span>
                 </span>
               </div>
               <TradeSidesView sides={viewSides(t.id)} />
