@@ -41,6 +41,10 @@ export function ActiveTradeCard({
   const [error, setError] = useState("");
   const [amount, setAmount] = useState("0");
   const [direction, setDirection] = useState<CashDirection>("receive");
+  const [editingCash, setEditingCash] = useState(false);
+  const [editAmount, setEditAmount] = useState("0");
+  const [editDirection, setEditDirection] = useState<CashDirection>("receive");
+  const [editRefId, setEditRefId] = useState(() => sides[0]?.managerId ?? "");
 
   // A party to the trade enters cash from their own side. A commissioner who
   // isn't in the trade picks which side the cash is for.
@@ -78,6 +82,31 @@ export function ActiveTradeCard({
     setBusy(true);
     await fetch(`/api/trades/${tradeId}/${verb}`, { method: "POST" });
     setBusy(false);
+    router.refresh();
+  }
+
+  async function updateCash() {
+    const mag = Number(editAmount);
+    if (!Number.isInteger(mag) || mag < 0) {
+      setError("Enter a whole dollar amount.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    const signed = editDirection === "receive" ? mag : -mag;
+    const res = await fetch(`/api/trades/${tradeId}/update-cash`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cashAmount: signed, sideManagerId: editRefId }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? "Failed to update cash.");
+      setBusy(false);
+      return;
+    }
+    setBusy(false);
+    setEditingCash(false);
     router.refresh();
   }
 
@@ -151,22 +180,77 @@ export function ActiveTradeCard({
               ))}
             </div>
           )}
-          <div className="mt-4 flex items-center gap-2 border-t border-line pt-4">
-            <button
-              onClick={() => decide("approve")}
-              disabled={busy}
-              className="rounded-md bg-[rgba(76,175,109,0.14)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-approved transition-colors hover:bg-[rgba(76,175,109,0.24)] disabled:opacity-40"
-            >
-              Approve
-            </button>
-            <button
-              onClick={() => decide("reject")}
-              disabled={busy}
-              className="rounded-md bg-[rgba(229,72,77,0.14)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rejected transition-colors hover:bg-[rgba(229,72,77,0.24)] disabled:opacity-40"
-            >
-              Reject
-            </button>
-          </div>
+          {editingCash ? (
+            <div className="mt-4 border-t border-line pt-4 text-sm">
+              <div className="mb-2 text-xs uppercase tracking-wide text-muted">
+                Edit cash
+              </div>
+              {sides.length > 1 && (
+                <label className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+                  Cash for
+                  <select
+                    value={editRefId}
+                    onChange={(e) => setEditRefId(e.target.value)}
+                    className="rounded border border-line bg-canvas px-2 py-1 text-sm text-ink"
+                  >
+                    {sides.map((s) => (
+                      <option key={s.managerId} value={s.managerId}>
+                        {s.managerName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <CashDirectionInput
+                amount={editAmount}
+                onAmountChange={setEditAmount}
+                direction={editDirection}
+                onDirectionChange={setEditDirection}
+                receiveLabel={sides.length === 2 ? `Received from ${sides.find((s) => s.managerId !== editRefId)?.managerName ?? "other"}` : "Received"}
+                sendLabel={sides.length === 2 ? `Sent to ${sides.find((s) => s.managerId !== editRefId)?.managerName ?? "other"}` : "Sent"}
+                inputId={`edit-cash-${tradeId}`}
+              />
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  onClick={updateCash}
+                  disabled={busy}
+                  className="rounded-md bg-brand px-3 py-1.5 font-semibold text-[var(--color-brand-ink)] transition-opacity disabled:opacity-40"
+                >
+                  {busy ? "Saving..." : "Save cash"}
+                </button>
+                <button
+                  onClick={() => { setEditingCash(false); setError(""); }}
+                  className="text-sm text-muted hover:text-ink"
+                >
+                  Cancel
+                </button>
+              </div>
+              {error && <p className="mt-2 text-sm text-rejected">{error}</p>}
+            </div>
+          ) : (
+            <div className="mt-4 flex items-center gap-2 border-t border-line pt-4">
+              <button
+                onClick={() => decide("approve")}
+                disabled={busy}
+                className="rounded-md bg-[rgba(76,175,109,0.14)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-approved transition-colors hover:bg-[rgba(76,175,109,0.24)] disabled:opacity-40"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => decide("reject")}
+                disabled={busy}
+                className="rounded-md bg-[rgba(229,72,77,0.14)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rejected transition-colors hover:bg-[rgba(229,72,77,0.24)] disabled:opacity-40"
+              >
+                Reject
+              </button>
+              <button
+                onClick={() => setEditingCash(true)}
+                className="ml-auto text-xs text-muted hover:text-ink"
+              >
+                Edit cash
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
